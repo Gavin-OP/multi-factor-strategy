@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary-color: #3b82f6;
+  --secondary-color: #10b981;
+  --danger-color: #ef4444;
+  --background-color: #0f172a;
+  --surface-color: #1e293b;
+  --text-color: #f1f5f9;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  background-color: var(--background-color);
+  color: var(--text-color);
+}
+
+.card {
+  background-color: var(--surface-color);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.metric-card {
+  @apply flex flex-col p-4 rounded-lg bg-slate-800;
+}
+
+.metric-value {
+  @apply text-2xl font-bold text-white;
+}
+
+.metric-label {
+  @apply text-sm text-slate-400 mt-1;
+}
+
+.chart-container {
+  @apply w-full h-64 bg-slate-800 rounded-lg p-4;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  @apply text-left text-slate-400 text-sm font-medium pb-2 border-b border-slate-700;
+}
+
+td {
+  @apply py-3 text-white;
+}
+
+tr:hover {
+  @apply bg-slate-700/50;
+}
+
+.positive {
+  @apply text-green-400;
+}
+
+.negative {
+  @apply text-red-400;
+}

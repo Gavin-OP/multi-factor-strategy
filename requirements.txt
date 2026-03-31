@@ -1,0 +1,53 @@
+# Core Dependencies
+numpy>=1.24.0
+pandas>=2.0.0
+scipy>=1.10.0
+
+# Database
+sqlalchemy>=2.0.0
+alembic>=1.12.0
+
+# Data Processing
+requests>=2.31.0
+akshare>=1.12.0
+tushare>=1.3.0
+
+# Factor & Analysis
+statsmodels>=0.14.0
+scikit-learn>=1.3.0
+talib>=0.4.28
+
+# Backtesting
+backtrader>=1.9.76
+
+# Performance & Risk
+quantstats>=0.0.62
+empyrical>=0.5.5
+pyfolio-reloaded>=0.9.5
+
+# Visualization
+matplotlib>=3.7.0
+seaborn>=0.12.0
+plotly>=5.15.0
+
+# Console & Logging
+rich>=13.5.0
+loguru>=0.7.0
+
+# Configuration
+python-dotenv>=1.0.0
+configparser>=6.0.0
+
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+
+# Utilities
+joblib>=1.3.0
+tqdm>=4.66.0
+python-dateutil>=2.8.2
+
+# Web & API (for visualization)
+fastapi>=0.103.0
+uvicorn>=0.23.0
+jinja2>=3.1.2
