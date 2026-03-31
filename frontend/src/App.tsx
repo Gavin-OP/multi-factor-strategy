@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   LineChart,
   Line,
@@ -15,322 +15,540 @@ import {
   Cell,
   AreaChart,
   Area,
+  ScatterChart,
+  Scatter,
+  ComposedChart,
 } from 'recharts'
-import { TrendingUp, TrendingDown, Activity, DollarSign, PieChart as PieChartIcon } from 'lucide-react'
+import { 
+  TrendingUp, 
+  TrendingDown, 
+  Activity, 
+  DollarSign, 
+  PieChart as PieChartIcon,
+  RefreshCw,
+  Play,
+  CheckSquare,
+  Square
+} from 'lucide-react'
 
-// Mock data
-const equityCurveData = Array.from({ length: 100 }, (_, i) => ({
-  date: `2023-${String(Math.floor(i / 30) + 1).padStart(2, '0')}-${String((i % 30) + 1).padStart(2, '0')}`,
-  equity: 10000000 * Math.exp(0.0003 * i + 0.01 * Math.sin(i / 10)),
-  benchmark: 10000000 * Math.exp(0.0002 * i + 0.008 * Math.sin(i / 12)),
-}))
+// ============================================
+// Mock Data - 实际项目中会从后端 API 获取
+// ============================================
 
-const monthlyReturns = [
-  { month: 'Jan', return: 2.3 },
-  { month: 'Feb', return: -1.2 },
-  { month: 'Mar', return: 3.5 },
-  { month: 'Apr', return: 1.8 },
-  { month: 'May', return: -0.5 },
-  { month: 'Jun', return: 2.1 },
-  { month: 'Jul', return: 4.2 },
-  { month: 'Aug', return: -2.1 },
-  { month: 'Sep', return: 1.5 },
-  { month: 'Oct', return: 3.8 },
-  { month: 'Nov', return: 2.2 },
-  { month: 'Dec', return: 1.9 },
+const FACTORS = [
+  { id: 'Factor001', name: 'Factor001 - 价量相关性', category: 'volume_price', ic: 0.042, icir: 0.65, halfLife: 8, effective: true },
+  { id: 'Factor002', name: 'Factor002 - 日内动量', category: 'momentum', ic: 0.038, icir: 0.58, halfLife: 5, effective: true },
+  { id: 'Factor003', name: 'Factor003 - 成交量排名', category: 'volume_price', ic: 0.035, icir: 0.52, halfLife: 6, effective: true },
+  { id: 'Factor004', name: 'Factor004 - 成交量振荡', category: 'volume_price', ic: 0.028, icir: 0.42, halfLife: 4, effective: false },
+  { id: 'Factor005', name: 'Factor005 - VWAP动量', category: 'momentum', ic: 0.045, icir: 0.72, halfLife: 10, effective: true },
+  { id: 'Factor006', name: 'Factor006 - 开盘量相关', category: 'volume_price', ic: 0.032, icir: 0.48, halfLife: 7, effective: true },
+  { id: 'Factor007', name: 'Factor007 - 成交量突破', category: 'volume_price', ic: 0.029, icir: 0.44, halfLife: 3, effective: false },
+  { id: 'Factor008', name: 'Factor008 - 收盘价动量', category: 'momentum', ic: 0.033, icir: 0.51, halfLife: 9, effective: true },
+  { id: 'Factor009', name: 'Factor009 - 成交量比率', category: 'volume_price', ic: 0.036, icir: 0.55, halfLife: 6, effective: true },
+  { id: 'Factor010', name: 'Factor010 - 收益相关', category: 'volume_price', ic: 0.031, icir: 0.47, halfLife: 5, effective: false },
+  { id: 'Momentum', name: 'Momentum - 动量因子', category: 'momentum', ic: 0.044, icir: 0.68, halfLife: 12, effective: true },
+  { id: 'Volatility', name: 'Volatility - 波动率', category: 'risk', ic: -0.038, icir: -0.62, halfLife: 15, effective: true },
+  { id: 'Liquidity', name: 'Liquidity - 流动性', category: 'liquidity', ic: -0.035, icir: -0.55, halfLife: 8, effective: true },
 ]
 
-const factorPerformance = [
-  { name: 'Factor001', ic: 0.04, icir: 0.65, effective: true },
-  { name: 'Factor002', ic: 0.03, icir: 0.52, effective: true },
-  { name: 'Factor003', ic: 0.02, icir: 0.45, effective: true },
-  { name: 'Factor004', ic: 0.01, icir: 0.32, effective: false },
-  { name: 'Factor005', ic: 0.05, icir: 0.72, effective: true },
-  { name: 'Factor006', ic: 0.02, icir: 0.48, effective: true },
-  { name: 'Momentum', ic: 0.04, icir: 0.58, effective: true },
-  { name: 'Volatility', ic: 0.03, icir: 0.55, effective: true },
-]
+const generateEquityCurve = (factors: string[], period: number = 252) => {
+  // 根据选择的因子生成模拟净值曲线
+  const baseReturn = factors.length > 0 
+    ? factors.reduce((sum, f) => {
+        const factor = FACTORS.find(fa => fa.id === f)
+        return sum + (factor?.ic || 0) * 0.5
+      }, 0) / factors.length
+    : 0.0003
 
-const positions = [
-  { symbol: '000001', weight: 5.2, signal: 1.23, return: 2.5 },
-  { symbol: '000002', weight: 4.8, signal: 1.15, return: 1.8 },
-  { symbol: '000003', weight: 4.5, signal: 1.08, return: -0.5 },
-  { symbol: '000004', weight: 4.2, signal: 1.02, return: 3.2 },
-  { symbol: '000005', weight: 3.9, signal: 0.98, return: 0.8 },
-  { symbol: '000006', weight: 3.7, signal: 0.95, return: 1.2 },
-  { symbol: '000007', weight: 3.5, signal: 0.92, return: -1.1 },
-  { symbol: '000008', weight: 3.3, signal: 0.88, return: 2.1 },
-  { symbol: '000009', weight: 3.1, signal: 0.85, return: 0.5 },
-  { symbol: '000010', weight: 2.9, signal: 0.82, return: 1.5 },
-]
+  const dates = Array.from({ length: period }, (_, i) => {
+    const d = new Date()
+    d.setDate(d.getDate() - (period - i))
+    return d.toISOString().split('T')[0]
+  })
+
+  let equity = 10000000
+  const data = dates.map((date, i) => {
+    const dailyReturn = baseReturn + (Math.random() - 0.5) * 0.02
+    equity *= (1 + dailyReturn)
+    return {
+      date,
+      equity,
+      return: dailyReturn,
+      benchmark: 10000000 * Math.exp(0.0002 * i),
+    }
+  })
+  return data
+}
+
+const generateFactorDetail = (factorId: string) => {
+  const factor = FACTORS.find(f => f.id === factorId)
+  if (!factor) return null
+
+  // IC 时间序列
+  const icSeries = Array.from({ length: 52 }, (_, i) => ({
+    week: i + 1,
+    ic: factor.ic + (Math.random() - 0.5) * 0.03,
+  }))
+
+  // IC 衰减曲线
+  const icDecay = Array.from({ length: 20 }, (_, i) => ({
+    lag: i,
+    ic: factor.ic * Math.exp(-i / factor.halfLife),
+  }))
+
+  // 分组收益
+  const groupReturns = Array.from({ length: 5 }, (_, i) => ({
+    group: `Q${i + 1}`,
+    return: (i - 2) * factor.ic * 0.3 + (Math.random() - 0.5) * 0.02,
+    sharpe: (i - 2) * factor.icir * 0.5 + Math.random(),
+  }))
+
+  // 换手率
+  const turnover = Array.from({ length: 12 }, (_, i) => ({
+    month: i + 1,
+    turnover: 0.2 + Math.random() * 0.3,
+  }))
+
+  return {
+    ...factor,
+    icSeries,
+    icDecay,
+    groupReturns,
+    turnover,
+    stats: {
+      icMean: factor.ic,
+      icStd: factor.ic / factor.icir,
+      icir: factor.icir,
+      halfLife: factor.halfLife,
+      monotonicity: 0.7 + Math.random() * 0.25,
+      turnover: 0.25 + Math.random() * 0.15,
+      sortino: factor.icir * 1.2,
+      maxDrawdown: 0.08 + Math.random() * 0.1,
+    }
+  }
+}
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899']
 
-const pieData = [
-  { name: 'Technology', value: 35 },
-  { name: 'Finance', value: 20 },
-  { name: 'Healthcare', value: 15 },
-  { name: 'Consumer', value: 12 },
-  { name: 'Industrial', value: 10 },
-  { name: 'Other', value: 8 },
-]
+// ============================================
+// Main App Component
+// ============================================
 
 function App() {
-  const metrics = {
-    totalReturn: 24.5,
-    annualReturn: 12.3,
-    sharpeRatio: 1.85,
-    maxDrawdown: -8.2,
-    winRate: 58.5,
-    profitFactor: 1.65,
+  const [activeTab, setActiveTab] = useState<'factors' | 'backtest'>('factors')
+  const [selectedFactor, setSelectedFactor] = useState<string | null>(null)
+  const [factorDetail, setFactorDetail] = useState<any>(null)
+  const [selectedFactors, setSelectedFactors] = useState<string[]>([])
+  const [backtestLoading, setBacktestLoading] = useState(false)
+  const [backtestResult, setBacktestResult] = useState<any>(null)
+
+  // 当选择因子时加载详情
+  useEffect(() => {
+    if (selectedFactor) {
+      const detail = generateFactorDetail(selectedFactor)
+      setFactorDetail(detail)
+    }
+  }, [selectedFactor])
+
+  // 运行回测
+  const runBacktest = () => {
+    if (selectedFactors.length === 0) return
+    
+    setBacktestLoading(true)
+    
+    // 模拟回测
+    setTimeout(() => {
+      const equityCurve = generateEquityCurve(selectedFactors)
+      const finalEquity = equityCurve[equityCurve.length - 1].equity
+      const totalReturn = finalEquity / 10000000 - 1
+      
+      setBacktestResult({
+        equityCurve,
+        totalReturn,
+        sharpe: selectedFactors.reduce((sum, f) => {
+          const factor = FACTORS.find(fa => fa.id === f)
+          return sum + (factor?.icir || 0)
+        }, 0) / selectedFactors.length * 2,
+        maxDrawdown: 0.1 + Math.random() * 0.1,
+        winRate: 0.55 + Math.random() * 0.1,
+        selectedFactors: selectedFactors.map(f => FACTORS.find(fa => fa.id === f)?.name),
+      })
+      
+      setBacktestLoading(false)
+    }, 1500)
+  }
+
+  // 切换因子选择
+  const toggleFactor = (factorId: string) => {
+    setSelectedFactors(prev => 
+      prev.includes(factorId)
+        ? prev.filter(f => f !== factorId)
+        : [...prev, factorId]
+    )
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 p-6">
+    <div className="min-h-screen bg-slate-900 text-white">
       {/* Header */}
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold text-white mb-2">
-          Quant Factor Strategy Dashboard
-        </h1>
-        <p className="text-slate-400">
-          Real-time performance monitoring and analysis
-        </p>
-      </header>
-
-      {/* Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <MetricCard
-          title="Total Return"
-          value={`${metrics.totalReturn}%`}
-          icon={<TrendingUp className="w-6 h-6" />}
-          positive={metrics.totalReturn > 0}
-        />
-        <MetricCard
-          title="Sharpe Ratio"
-          value={metrics.sharpeRatio.toFixed(2)}
-          icon={<Activity className="w-6 h-6" />}
-          positive={metrics.sharpeRatio > 1}
-        />
-        <MetricCard
-          title="Max Drawdown"
-          value={`${metrics.maxDrawdown}%`}
-          icon={<TrendingDown className="w-6 h-6" />}
-          positive={metrics.maxDrawdown > -10}
-        />
-        <MetricCard
-          title="Win Rate"
-          value={`${metrics.winRate}%`}
-          icon={<DollarSign className="w-6 h-6" />}
-          positive={metrics.winRate > 50}
-        />
-      </div>
-
-      {/* Charts Row 1 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* Equity Curve */}
-        <div className="card">
-          <h2 className="text-lg font-semibold text-white mb-4">Equity Curve</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={equityCurveData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-              <XAxis dataKey="date" stroke="#64748b" tick={false} />
-              <YAxis stroke="#64748b" tickFormatter={(v) => `${(v / 1e6).toFixed(1)}M`} />
-              <Tooltip
-                contentStyle={{ backgroundColor: '#1e293b', border: 'none' }}
-                labelStyle={{ color: '#f1f5f9' }}
-                formatter={(value: number) => [`$${(value / 1e6).toFixed(2)}M`, '']}
-              />
-              <Area
-                type="monotone"
-                dataKey="equity"
-                stroke="#3b82f6"
-                fill="#3b82f6"
-                fillOpacity={0.3}
-                name="Strategy"
-              />
-              <Area
-                type="monotone"
-                dataKey="benchmark"
-                stroke="#10b981"
-                fill="#10b981"
-                fillOpacity={0.1}
-                name="Benchmark"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Monthly Returns */}
-        <div className="card">
-          <h2 className="text-lg font-semibold text-white mb-4">Monthly Returns</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={monthlyReturns}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-              <XAxis dataKey="month" stroke="#64748b" />
-              <YAxis stroke="#64748b" tickFormatter={(v) => `${v}%`} />
-              <Tooltip
-                contentStyle={{ backgroundColor: '#1e293b', border: 'none' }}
-                formatter={(value: number) => [`${value}%`, 'Return']}
-              />
-              <Bar
-                dataKey="return"
-                fill="#3b82f6"
-                radius={[4, 4, 0, 0]}
-              >
-                {monthlyReturns.map((entry, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={entry.return >= 0 ? '#10b981' : '#ef4444'}
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Charts Row 2 */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        {/* Factor Performance */}
-        <div className="card lg:col-span-2">
-          <h2 className="text-lg font-semibold text-white mb-4">Factor Performance</h2>
-          <div className="overflow-x-auto">
-            <table>
-              <thead>
-                <tr>
-                  <th>Factor</th>
-                  <th>IC</th>
-                  <th>ICIR</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {factorPerformance.map((factor, i) => (
-                  <tr key={i}>
-                    <td className="font-medium">{factor.name}</td>
-                    <td className={factor.ic > 0.02 ? 'positive' : ''}>
-                      {factor.ic.toFixed(3)}
-                    </td>
-                    <td className={factor.icir > 0.5 ? 'positive' : ''}>
-                      {factor.icir.toFixed(2)}
-                    </td>
-                    <td>
-                      <span
-                        className={`px-2 py-1 rounded text-xs ${
-                          factor.effective
-                            ? 'bg-green-900 text-green-300'
-                            : 'bg-yellow-900 text-yellow-300'
-                        }`}
-                      >
-                        {factor.effective ? 'Effective' : 'Ineffective'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <header className="border-b border-slate-700 p-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Quant Factor Strategy</h1>
+            <p className="text-slate-400 text-sm">量化因子策略分析与回测平台</p>
+          </div>
+          
+          {/* Tab Switcher */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => setActiveTab('factors')}
+              className={`px-4 py-2 rounded-lg transition ${
+                activeTab === 'factors' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+              }`}
+            >
+              因子分析
+            </button>
+            <button
+              onClick={() => setActiveTab('backtest')}
+              className={`px-4 py-2 rounded-lg transition ${
+                activeTab === 'backtest' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+              }`}
+            >
+              策略回测
+            </button>
           </div>
         </div>
+      </header>
 
-        {/* Sector Allocation */}
-        <div className="card">
-          <h2 className="text-lg font-semibold text-white mb-4">Sector Allocation</h2>
-          <ResponsiveContainer width="100%" height={250}>
-            <PieChart>
-              <Pie
-                data={pieData}
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={80}
-                paddingAngle={5}
-                dataKey="value"
+      <main className="max-w-7xl mx-auto p-6">
+        {activeTab === 'factors' ? (
+          <FactorAnalysisTab
+            factors={FACTORS}
+            selectedFactor={selectedFactor}
+            setSelectedFactor={setSelectedFactor}
+            factorDetail={factorDetail}
+          />
+        ) : (
+          <BacktestTab
+            factors={FACTORS}
+            selectedFactors={selectedFactors}
+            toggleFactor={toggleFactor}
+            runBacktest={runBacktest}
+            backtestLoading={backtestLoading}
+            backtestResult={backtestResult}
+          />
+        )}
+      </main>
+
+      <footer className="border-t border-slate-700 p-4 text-center text-slate-500 text-sm">
+        <p>Quant Factor Strategy Framework • 数据源: Akshare / Tushare / yfinance / Mock</p>
+      </footer>
+    </div>
+  )
+}
+
+// ============================================
+// Factor Analysis Tab
+// ============================================
+
+function FactorAnalysisTab({ 
+  factors, 
+  selectedFactor, 
+  setSelectedFactor,
+  factorDetail
+}: any) {
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Factor List */}
+      <div className="lg:col-span-1">
+        <div className="bg-slate-800 rounded-lg p-4">
+          <h2 className="text-lg font-semibold mb-4">因子列表 ({factors.length})</h2>
+          
+          <div className="space-y-2 max-h-[calc(100vh-300px)] overflow-y-auto">
+            {factors.map((factor: any) => (
+              <div
+                key={factor.id}
+                onClick={() => setSelectedFactor(factor.id)}
+                className={`p-3 rounded-lg cursor-pointer transition ${
+                  selectedFactor === factor.id
+                    ? 'bg-blue-600'
+                    : 'bg-slate-700 hover:bg-slate-600'
+                }`}
               >
-                {pieData.map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip
-                contentStyle={{ backgroundColor: '#1e293b', border: 'none' }}
-                formatter={(value: number) => [`${value}%`, '']}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="flex flex-wrap justify-center gap-2 mt-4">
-            {pieData.map((item, index) => (
-              <div key={item.name} className="flex items-center gap-1">
-                <div
-                  className="w-3 h-3 rounded"
-                  style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                />
-                <span className="text-xs text-slate-400">{item.name}</span>
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">{factor.name}</span>
+                  <span className={`text-xs px-2 py-1 rounded ${
+                    factor.effective 
+                      ? 'bg-green-900 text-green-300' 
+                      : 'bg-yellow-900 text-yellow-300'
+                  }`}>
+                    {factor.effective ? '有效' : '无效'}
+                  </span>
+                </div>
+                <div className="mt-2 text-sm text-slate-300 flex gap-4">
+                  <span>IC: {factor.ic.toFixed(3)}</span>
+                  <span>ICIR: {factor.icir.toFixed(2)}</span>
+                </div>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Positions Table */}
-      <div className="card">
-        <h2 className="text-lg font-semibold text-white mb-4">Top Positions</h2>
-        <div className="overflow-x-auto">
-          <table>
-            <thead>
-              <tr>
-                <th>Symbol</th>
-                <th>Weight</th>
-                <th>Signal</th>
-                <th>Return</th>
-              </tr>
-            </thead>
-            <tbody>
-              {positions.map((pos, i) => (
-                <tr key={i}>
-                  <td className="font-medium">{pos.symbol}</td>
-                  <td>{pos.weight.toFixed(1)}%</td>
-                  <td>{pos.signal.toFixed(2)}</td>
-                  <td className={pos.return >= 0 ? 'positive' : 'negative'}>
-                    {pos.return >= 0 ? '+' : ''}{pos.return.toFixed(1)}%
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      {/* Factor Detail */}
+      <div className="lg:col-span-2">
+        {factorDetail ? (
+          <div className="space-y-6">
+            {/* Summary Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <MetricCard 
+                title="IC Mean" 
+                value={factorDetail.stats.icMean.toFixed(4)} 
+                positive={factorDetail.stats.icMean > 0}
+              />
+              <MetricCard 
+                title="ICIR" 
+                value={factorDetail.stats.icir.toFixed(2)} 
+                positive={Math.abs(factorDetail.stats.icir) > 0.5}
+              />
+              <MetricCard 
+                title="Half-Life" 
+                value={`${factorDetail.stats.halfLife}d`} 
+                positive={factorDetail.stats.halfLife > 5}
+              />
+              <MetricCard 
+                title="Monotonicity" 
+                value={factorDetail.stats.monotonicity.toFixed(2)} 
+                positive={factorDetail.stats.monotonicity > 0.7}
+              />
+            </div>
 
-      {/* Footer */}
-      <footer className="mt-8 text-center text-slate-500 text-sm">
-        <p>Quant Factor Strategy Framework • Built with React + Python</p>
-      </footer>
+            {/* IC Time Series */}
+            <div className="bg-slate-800 rounded-lg p-4">
+              <h3 className="text-lg font-semibold mb-4">IC 时间序列</h3>
+              <ResponsiveContainer width="100%" height={250}>
+                <ComposedChart data={factorDetail.icSeries}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                  <XAxis dataKey="week" stroke="#64748b" />
+                  <YAxis stroke="#64748b" />
+                  <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none' }} />
+                  <Area type="monotone" dataKey="ic" fill="#3b82f6" fillOpacity={0.3} stroke="#3b82f6" />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Two Charts Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* IC Decay */}
+              <div className="bg-slate-800 rounded-lg p-4">
+                <h3 className="text-lg font-semibold mb-4">IC 衰减曲线</h3>
+                <ResponsiveContainer width="100%" height={200}>
+                  <LineChart data={factorDetail.icDecay}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                    <XAxis dataKey="lag" stroke="#64748b" />
+                    <YAxis stroke="#64748b" />
+                    <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none' }} />
+                    <Line type="monotone" dataKey="ic" stroke="#10b981" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Group Returns */}
+              <div className="bg-slate-800 rounded-lg p-4">
+                <h3 className="text-lg font-semibold mb-4">分组收益</h3>
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={factorDetail.groupReturns}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                    <XAxis dataKey="group" stroke="#64748b" />
+                    <YAxis stroke="#64748b" tickFormatter={(v) => `${(v * 100).toFixed(1)}%`} />
+                    <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none' }} />
+                    <Bar dataKey="return" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Detailed Stats Table */}
+            <div className="bg-slate-800 rounded-lg p-4">
+              <h3 className="text-lg font-semibold mb-4">详细统计</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div>
+                  <p className="text-slate-400">IC Mean</p>
+                  <p className="text-lg font-bold">{factorDetail.stats.icMean.toFixed(4)}</p>
+                </div>
+                <div>
+                  <p className="text-slate-400">IC Std</p>
+                  <p className="text-lg font-bold">{factorDetail.stats.icStd.toFixed(4)}</p>
+                </div>
+                <div>
+                  <p className="text-slate-400">Sortino Ratio</p>
+                  <p className="text-lg font-bold">{factorDetail.stats.sortino.toFixed(2)}</p>
+                </div>
+                <div>
+                  <p className="text-slate-400">Max Drawdown</p>
+                  <p className="text-lg font-bold text-red-400">{(factorDetail.stats.maxDrawdown * 100).toFixed(1)}%</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-slate-800 rounded-lg p-8 text-center">
+            <p className="text-slate-400">请从左侧选择一个因子查看详细分析</p>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
 
-function MetricCard({
-  title,
-  value,
-  icon,
-  positive,
-}: {
-  title: string
-  value: string
-  icon: React.ReactNode
-  positive: boolean
-}) {
+// ============================================
+// Backtest Tab
+// ============================================
+
+function BacktestTab({
+  factors,
+  selectedFactors,
+  toggleFactor,
+  runBacktest,
+  backtestLoading,
+  backtestResult
+}: any) {
   return (
-    <div className="card flex items-center gap-4">
-      <div
-        className={`p-3 rounded-lg ${
-          positive ? 'bg-green-900/50 text-green-400' : 'bg-red-900/50 text-red-400'
-        }`}
-      >
-        {icon}
+    <div className="space-y-6">
+      {/* Factor Selection */}
+      <div className="bg-slate-800 rounded-lg p-4">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold">选择因子组合 ({selectedFactors.length} 已选)</h2>
+          <button
+            onClick={runBacktest}
+            disabled={selectedFactors.length === 0 || backtestLoading}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {backtestLoading ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                回测中...
+              </>
+            ) : (
+              <>
+                <Play className="w-4 h-4" />
+                运行回测
+              </>
+            )}
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-2">
+          {factors.map((factor: any) => (
+            <div
+              key={factor.id}
+              onClick={() => toggleFactor(factor.id)}
+              className={`p-3 rounded-lg cursor-pointer transition border-2 ${
+                selectedFactors.includes(factor.id)
+                  ? 'border-blue-500 bg-blue-900/30'
+                  : 'border-transparent bg-slate-700 hover:bg-slate-600'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                {selectedFactors.includes(factor.id) ? (
+                  <CheckSquare className="w-4 h-4 text-blue-400" />
+                ) : (
+                  <Square className="w-4 h-4 text-slate-400" />
+                )}
+                <span className="text-sm font-medium">{factor.id}</span>
+              </div>
+              <div className="mt-1 text-xs text-slate-400">
+                IC: {factor.ic.toFixed(3)} | ICIR: {factor.icir.toFixed(2)}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
-      <div>
-        <p className="text-slate-400 text-sm">{title}</p>
-        <p className="text-2xl font-bold text-white">{value}</p>
-      </div>
+
+      {/* Backtest Results */}
+      {backtestResult && (
+        <div className="space-y-6">
+          {/* Summary Metrics */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <MetricCard
+              title="Total Return"
+              value={`${(backtestResult.totalReturn * 100).toFixed(1)}%`}
+              positive={backtestResult.totalReturn > 0}
+            />
+            <MetricCard
+              title="Sharpe Ratio"
+              value={backtestResult.sharpe.toFixed(2)}
+              positive={backtestResult.sharpe > 1}
+            />
+            <MetricCard
+              title="Max Drawdown"
+              value={`${(backtestResult.maxDrawdown * 100).toFixed(1)}%`}
+              positive={backtestResult.maxDrawdown < 0.15}
+            />
+            <MetricCard
+              title="Win Rate"
+              value={`${(backtestResult.winRate * 100).toFixed(1)}%`}
+              positive={backtestResult.winRate > 0.5}
+            />
+          </div>
+
+          {/* Equity Curve */}
+          <div className="bg-slate-800 rounded-lg p-4">
+            <h3 className="text-lg font-semibold mb-4">净值曲线</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <ComposedChart data={backtestResult.equityCurve}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                <XAxis dataKey="date" stroke="#64748b" tick={false} />
+                <YAxis stroke="#64748b" tickFormatter={(v) => `${(v / 1e6).toFixed(1)}M`} />
+                <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none' }} />
+                <Legend />
+                <Area type="monotone" dataKey="equity" name="策略" fill="#3b82f6" fillOpacity={0.3} stroke="#3b82f6" />
+                <Line type="monotone" dataKey="benchmark" name="基准" stroke="#64748b" strokeDasharray="5 5" dot={false} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Selected Factors Info */}
+          <div className="bg-slate-800 rounded-lg p-4">
+            <h3 className="text-lg font-semibold mb-4">已选因子</h3>
+            <div className="flex flex-wrap gap-2">
+              {backtestResult.selectedFactors.map((name: string, i: number) => (
+                <span
+                  key={i}
+                  className="px-3 py-1 bg-blue-900 text-blue-300 rounded-full text-sm"
+                >
+                  {name}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!backtestResult && !backtestLoading && (
+        <div className="bg-slate-800 rounded-lg p-8 text-center">
+          <p className="text-slate-400">选择因子后点击"运行回测"查看结果</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ============================================
+// Reusable Components
+// ============================================
+
+function MetricCard({ title, value, positive }: { title: string; value: string; positive: boolean }) {
+  return (
+    <div className="bg-slate-800 rounded-lg p-4">
+      <p className="text-slate-400 text-sm">{title}</p>
+      <p className={`text-2xl font-bold mt-1 ${positive ? 'text-green-400' : 'text-red-400'}`}>
+        {value}
+      </p>
     </div>
   )
 }
