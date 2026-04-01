@@ -15,7 +15,7 @@ tushare>=1.3.0
 # Factor & Analysis
 statsmodels>=0.14.0
 scikit-learn>=1.3.0
-talib>=0.4.28
+# talib>=0.4.28  # Requires system dependency, commented out for cloud deployment
 
 # Backtesting
 backtrader>=1.9.76
