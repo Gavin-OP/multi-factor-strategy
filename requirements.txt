@@ -22,8 +22,8 @@ backtrader>=1.9.76
 
 # Performance & Risk
 quantstats>=0.0.62
-empyrical>=0.5.5
-pyfolio-reloaded>=0.9.5
+# empyrical>=0.5.5  # Has compatibility issues with Python 3.13
+# pyfolio-reloaded>=0.9.5
 
 # Visualization
 matplotlib>=3.7.0
