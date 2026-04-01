@@ -14,6 +14,9 @@ import type { EChartsOption } from 'echarts';
 
 const { Title, Text } = Typography;
 
+// API base URL - will use environment variable or default
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 interface FactorResult {
   name: string;
   category: string;
@@ -42,63 +45,24 @@ interface FactorResult {
   decayCurve: { lag: number; ic: number }[];
 }
 
-// Mock data
-const mockFactorResult: FactorResult = {
-  name: 'Momentum_12M',
-  category: '动量因子',
-  icMean: 0.045,
-  icStd: 0.12,
-  icir: 0.375,
-  icTStat: 3.82,
-  icPositiveRatio: 0.58,
-  icSignificantRatio: 0.35,
-  factorReturn: 0.08,
-  factorReturnTStat: 2.45,
-  spreadReturn: 0.15,
-  spreadSharpe: 1.25,
-  monotonicity: 0.85,
-  halfLife: 5,
-  turnover: 0.35,
-  auc: 0.535,
-  f1Score: 0.52,
-  grade: 'B',
-  score: 0.65,
-  isEffective: true,
-  strengths: ['IC显著', '单调性好', '换手率适中'],
-  weaknesses: ['ICIR偏低', '半衰期较短'],
-  quantileReturns: [
-    { quantile: 1, return: 0.05, sharpe: 0.45 },
-    { quantile: 2, return: 0.08, sharpe: 0.62 },
-    { quantile: 3, return: 0.10, sharpe: 0.78 },
-    { quantile: 4, return: 0.13, sharpe: 0.95 },
-    { quantile: 5, return: 0.20, sharpe: 1.35 },
-  ],
-  icSeries: Array.from({ length: 24 }, (_, i) => ({
-    date: `2024-${String(i % 12 + 1).padStart(2, '0')}`,
-    ic: (Math.random() - 0.4) * 0.15
-  })),
-  decayCurve: Array.from({ length: 20 }, (_, i) => ({
-    lag: i,
-    ic: 0.045 * Math.exp(-i * 0.1)
-  }))
-};
-
 const factorTypes = [
-  { value: 'momentum', label: '动量因子' },
-  { value: 'value', label: '价值因子' },
-  { value: 'quality', label: '质量因子' },
-  { value: 'growth', label: '成长因子' },
-  { value: 'volatility', label: '波动率因子' },
-  { value: 'liquidity', label: '流动性因子' },
-  { value: 'sentiment', label: '情绪因子' },
-  { value: 'technical', label: '技术因子' },
+  { value: 'momentum_1m', label: '1月动量' },
+  { value: 'momentum_3m', label: '3月动量' },
+  { value: 'momentum_6m', label: '6月动量' },
+  { value: 'momentum_12m', label: '12月动量' },
+  { value: 'value_pe', label: 'PE因子' },
+  { value: 'value_pb', label: 'PB因子' },
+  { value: 'quality_roe', label: 'ROE因子' },
+  { value: 'quality_roa', label: 'ROA因子' },
+  { value: 'volatility_1m', label: '1月波动率' },
+  { value: 'liquidity_turnover', label: '换手率' },
 ];
 
 export default function FactorAnalysisPage() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
-  const [selectedFactor, setSelectedFactor] = useState('momentum');
+  const [selectedFactor, setSelectedFactor] = useState('momentum_12m');
   const [quantiles, setQuantiles] = useState(5);
   const [forwardPeriod, setForwardPeriod] = useState(5);
   const [industryNeutral, setIndustryNeutral] = useState(false);
@@ -108,10 +72,93 @@ export default function FactorAnalysisPage() {
 
   const handleRunTest = async () => {
     setTesting(true);
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    setResult(mockFactorResult);
+    
+    try {
+      // Call backend API
+      const response = await fetch(`${API_BASE_URL}/api/factors/test`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          factor_type: selectedFactor,
+          start_date: '20230101',
+          end_date: '20231231',
+          quantiles: quantiles,
+          forward_period: forwardPeriod,
+          industry_neutral: industryNeutral,
+          market_cap_neutral: marketCapNeutral,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setResult(data);
+        message.success('因子测试完成');
+      } else {
+        throw new Error('API request failed');
+      }
+    } catch (error) {
+      console.error('Error running factor test:', error);
+      message.warning('后端服务未连接，使用模拟数据');
+      
+      // Fallback to mock data
+      const mockResult = generateMockResult(selectedFactor, quantiles);
+      setResult(mockResult);
+    }
+    
     setTesting(false);
-    message.success('因子测试完成');
+  };
+
+  // Generate mock result (used when backend is not available)
+  const generateMockResult = (factorType: string, q: number): FactorResult => {
+    const icSeries = Array.from({ length: 24 }, (_, i) => ({
+      date: `2024-${String(i % 12 + 1).padStart(2, '0')}`,
+      ic: (Math.random() - 0.4) * 0.15
+    }));
+
+    const quantileReturns = Array.from({ length: q }, (_, i) => ({
+      quantile: i + 1,
+      return: 0.05 + i * 0.03 + Math.random() * 0.01,
+      sharpe: 0.5 + i * 0.2
+    }));
+
+    const decayCurve = Array.from({ length: 20 }, (_, i) => ({
+      lag: i,
+      ic: 0.045 * Math.exp(-i * 0.1)
+    }));
+
+    const icValues = icSeries.map(d => d.ic);
+    const icMean = icValues.reduce((a, b) => a + b, 0) / icValues.length;
+    const icStd = Math.sqrt(icValues.reduce((a, b) => a + Math.pow(b - icMean, 2), 0) / icValues.length);
+
+    return {
+      name: factorType,
+      category: '因子',
+      icMean,
+      icStd,
+      icir: icMean / icStd,
+      icTStat: icMean / (icStd / Math.sqrt(icValues.length)),
+      icPositiveRatio: icValues.filter(ic => ic > 0).length / icValues.length,
+      icSignificantRatio: 0.35,
+      factorReturn: 0.08,
+      factorReturnTStat: 2.45,
+      spreadReturn: quantileReturns[q - 1].return - quantileReturns[0].return,
+      spreadSharpe: 1.25,
+      monotonicity: 0.85,
+      halfLife: 5,
+      turnover: 0.35,
+      auc: 0.535,
+      f1Score: 0.52,
+      grade: 'B',
+      score: 0.65,
+      isEffective: true,
+      strengths: ['IC显著', '单调性好', '换手率适中'],
+      weaknesses: ['ICIR偏低', '半衰期较短'],
+      quantileReturns,
+      icSeries,
+      decayCurve,
+    };
   };
 
   // IC Time Series Chart
