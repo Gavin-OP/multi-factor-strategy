@@ -1,11 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   ConfigProvider, Layout, Menu, Button, Dropdown, Space, theme as antdTheme,
-  Typography, Tooltip
+  Typography, Tooltip, Badge, Tag
 } from 'antd'
 import {
   DatabaseOutlined, LineChartOutlined, BranchesOutlined,
-  SunOutlined, MoonOutlined, GlobalOutlined, MenuOutlined
+  SunOutlined, MoonOutlined, GlobalOutlined, MenuOutlined,
+  ApiOutlined, CheckCircleOutlined, CloseCircleOutlined
 } from '@ant-design/icons'
 import { I18nProvider, useI18n } from './i18n'
 import { ThemeProvider, useTheme } from './theme'
@@ -20,10 +21,44 @@ import 'dayjs/locale/zh-cn'
 const { Header, Content, Footer, Sider } = Layout
 const { Title } = Typography
 
+// API URL from environment variable
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+
+// Hook to check API status
+function useApiStatus() {
+  const [status, setStatus] = useState<'checking' | 'online' | 'offline'>('checking')
+  
+  const checkApi = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/health`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(5000) // 5 second timeout
+      })
+      if (response.ok) {
+        setStatus('online')
+      } else {
+        setStatus('offline')
+      }
+    } catch {
+      setStatus('offline')
+    }
+  }
+  
+  useEffect(() => {
+    checkApi()
+    // Check every 30 seconds
+    const interval = setInterval(checkApi, 30000)
+    return () => clearInterval(interval)
+  }, [])
+  
+  return { status, checkApi }
+}
+
 function AppContent() {
   const { t, language, setLanguage } = useI18n()
   const { theme, toggleTheme } = useTheme()
   const isDark = theme === 'dark'
+  const { status, checkApi } = useApiStatus()
   
   const [currentPage, setCurrentPage] = useState('architecture')
   const [collapsed, setCollapsed] = useState(false)
@@ -41,6 +76,13 @@ function AppContent() {
       { key: 'zh', label: '中文', onClick: () => { setLanguage('zh'); dayjs.locale('zh-cn') } },
       { key: 'en', label: 'English', onClick: () => { setLanguage('en'); dayjs.locale('en') } },
     ]
+  }
+
+  // API status indicator
+  const statusConfig = {
+    checking: { color: '#faad14', text: '检查中...', icon: <ApiOutlined spin /> },
+    online: { color: '#52c41a', text: '后端已连接', icon: <CheckCircleOutlined /> },
+    offline: { color: '#ff4d4f', text: '后端离线', icon: <CloseCircleOutlined /> },
   }
 
   // Render page
@@ -125,6 +167,26 @@ function AppContent() {
 
           {/* Right controls */}
           <Space>
+            {/* API Status Indicator */}
+            <Tooltip title={
+              <div>
+                <div>{statusConfig[status].text}</div>
+                <div style={{ fontSize: 12, opacity: 0.8 }}>{API_URL}</div>
+                <div style={{ fontSize: 11, marginTop: 4 }}>点击重新检查</div>
+              </div>
+            }>
+              <Tag 
+                color={statusConfig[status].color}
+                style={{ cursor: 'pointer', margin: 0 }}
+                onClick={checkApi}
+              >
+                {statusConfig[status].icon}
+                <span style={{ marginLeft: 4 }} className="hidden sm:inline">
+                  API {status === 'online' ? '在线' : status === 'offline' ? '离线' : '...'}
+                </span>
+              </Tag>
+            </Tooltip>
+
             {/* Language */}
             <Dropdown menu={langMenu} trigger={['click']}>
               <Button type="text" icon={<GlobalOutlined />}>
