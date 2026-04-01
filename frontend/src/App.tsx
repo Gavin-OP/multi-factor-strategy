@@ -1,85 +1,203 @@
 import React, { useState } from 'react'
-import { Database, LineChart, Settings, GitBranch } from 'lucide-react'
+import { 
+  ConfigProvider, Layout, Menu, Button, Dropdown, Space, theme as antdTheme,
+  Typography, Tooltip
+} from 'antd'
+import {
+  DatabaseOutlined, LineChartOutlined, BranchesOutlined,
+  SunOutlined, MoonOutlined, GlobalOutlined, MenuOutlined
+} from '@ant-design/icons'
+import { I18nProvider, useI18n } from './i18n'
+import { ThemeProvider, useTheme } from './theme'
 import DatabaseArchitecture from './components/DatabaseArchitecture'
 import FactorAnalysisPage from './pages/FactorAnalysis'
 import BacktestPage from './pages/Backtest'
+import zhCN from 'antd/locale/zh_CN'
+import enUS from 'antd/locale/en_US'
+import dayjs from 'dayjs'
+import 'dayjs/locale/zh-cn'
 
-// Main App with Navigation
-function App() {
-  const [currentPage, setCurrentPage] = useState<'architecture' | 'factors' | 'backtest'>('architecture')
+const { Header, Content, Footer, Sider } = Layout
+const { Title } = Typography
+
+function AppContent() {
+  const { t, language, setLanguage } = useI18n()
+  const { theme, toggleTheme } = useTheme()
+  const isDark = theme === 'dark'
+  
+  const [currentPage, setCurrentPage] = useState('architecture')
+  const [collapsed, setCollapsed] = useState(false)
+
+  // Menu items
+  const menuItems = [
+    { key: 'architecture', icon: <DatabaseOutlined />, label: t.nav.database },
+    { key: 'factors', icon: <LineChartOutlined />, label: t.nav.factors },
+    { key: 'backtest', icon: <BranchesOutlined />, label: t.nav.backtest },
+  ]
+
+  // Language menu
+  const langMenu = {
+    items: [
+      { key: 'zh', label: '中文', onClick: () => { setLanguage('zh'); dayjs.locale('zh-cn') } },
+      { key: 'en', label: 'English', onClick: () => { setLanguage('en'); dayjs.locale('en') } },
+    ]
+  }
+
+  // Render page
+  const renderPage = () => {
+    switch (currentPage) {
+      case 'architecture':
+        return <DatabaseArchitecture />
+      case 'factors':
+        return <FactorAnalysisPage />
+      case 'backtest':
+        return <BacktestPage />
+      default:
+        return <DatabaseArchitecture />
+    }
+  }
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white">
-      {/* Navigation */}
-      <nav className="border-b border-slate-700 bg-slate-800">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex items-center justify-between h-14">
-            <div className="flex items-center gap-6">
-              <h1 className="text-lg font-bold">Quant Factor Strategy</h1>
-              
-              <div className="flex gap-1">
-                <NavButton 
-                  active={currentPage === 'architecture'}
-                  onClick={() => setCurrentPage('architecture')}
-                  icon={<Database className="w-4 h-4" />}
-                  label="数据库架构"
-                />
-                <NavButton 
-                  active={currentPage === 'factors'}
-                  onClick={() => setCurrentPage('factors')}
-                  icon={<LineChart className="w-4 h-4" />}
-                  label="因子分析"
-                />
-                <NavButton 
-                  active={currentPage === 'backtest'}
-                  onClick={() => setCurrentPage('backtest')}
-                  icon={<GitBranch className="w-4 h-4" />}
-                  label="策略回测"
-                />
-              </div>
-            </div>
-            
-            <div className="text-sm text-slate-400">
-              数据源: AkShare / Tushare / yfinance
-            </div>
-          </div>
+    <Layout style={{ minHeight: '100vh' }}>
+      {/* Sider - visible on md and up */}
+      <Sider
+        collapsible
+        collapsed={collapsed}
+        onCollapse={setCollapsed}
+        breakpoint="md"
+        hiddenBreakpoint="md"
+        style={{
+          background: isDark ? '#141414' : '#fff',
+        }}
+        theme={isDark ? 'dark' : 'light'}
+      >
+        <div style={{ 
+          height: 64, 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          borderBottom: `1px solid ${isDark ? '#303030' : '#f0f0f0'}`
+        }}>
+          <Title level={4} style={{ margin: 0, color: isDark ? '#fff' : '#1890ff' }}>
+            {collapsed ? 'QFS' : t.nav.title}
+          </Title>
         </div>
-      </nav>
+        <Menu
+          mode="inline"
+          selectedKeys={[currentPage]}
+          onClick={(e) => setCurrentPage(e.key)}
+          items={menuItems}
+          style={{ borderRight: 0 }}
+        />
+      </Sider>
 
-      {/* Main Content */}
-      <main>
-        {currentPage === 'architecture' && <DatabaseArchitecture />}
-        {currentPage === 'factors' && <FactorAnalysisPage />}
-        {currentPage === 'backtest' && <BacktestPage />}
-      </main>
+      <Layout>
+        {/* Header */}
+        <Header style={{
+          padding: '0 16px',
+          background: isDark ? '#141414' : '#fff',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          borderBottom: `1px solid ${isDark ? '#303030' : '#f0f0f0'}`,
+          position: 'sticky',
+          top: 0,
+          zIndex: 100
+        }}>
+          {/* Mobile menu button */}
+          <div className="md:hidden">
+            <Dropdown
+              menu={{ items: menuItems.map(item => ({ ...item, onClick: () => setCurrentPage(item.key) })) }}
+              trigger={['click']}
+            >
+              <Button type="text" icon={<MenuOutlined />} />
+            </Dropdown>
+          </div>
 
-      {/* Footer */}
-      <footer className="border-t border-slate-700 p-4 text-center text-slate-500 text-sm">
-        <p>Quant Factor Strategy Framework • 免费数据库: Supabase + Neon + Xata • 免费数据: AkShare + Tushare + BaoStock</p>
-      </footer>
-    </div>
+          {/* Desktop nav - hidden on mobile */}
+          <Menu
+            mode="horizontal"
+            selectedKeys={[currentPage]}
+            onClick={(e) => setCurrentPage(e.key)}
+            items={menuItems}
+            style={{ flex: 1, border: 0, background: 'transparent' }}
+            className="hidden md:flex"
+          />
+
+          {/* Right controls */}
+          <Space>
+            {/* Language */}
+            <Dropdown menu={langMenu} trigger={['click']}>
+              <Button type="text" icon={<GlobalOutlined />}>
+                <span className="hidden sm:inline">{language === 'zh' ? '中文' : 'EN'}</span>
+              </Button>
+            </Dropdown>
+
+            {/* Theme toggle */}
+            <Tooltip title={t.theme.toggle}>
+              <Button 
+                type="text" 
+                icon={isDark ? <SunOutlined /> : <MoonOutlined />}
+                onClick={toggleTheme}
+              />
+            </Tooltip>
+          </Space>
+        </Header>
+
+        {/* Content */}
+        <Content style={{ 
+          margin: 0,
+          background: isDark ? '#000' : '#f5f5f5',
+        }}>
+          {renderPage()}
+        </Content>
+
+        {/* Footer */}
+        <Footer style={{
+          textAlign: 'center',
+          background: isDark ? '#141414' : '#fff',
+          borderTop: `1px solid ${isDark ? '#303030' : '#f0f0f0'}`,
+          padding: '16px 24px'
+        }}>
+          <Typography.Text type="secondary">
+            {t.footer.text} • {t.footer.freeDb}: Supabase + Neon + Xata • {t.footer.freeData}: AkShare + Tushare + BaoStock
+          </Typography.Text>
+        </Footer>
+      </Layout>
+    </Layout>
   )
 }
 
-function NavButton({ active, onClick, icon, label }: {
-  active: boolean
-  onClick: () => void
-  icon: React.ReactNode
-  label: string
-}) {
+function App() {
+  const { theme } = useTheme()
+  const { language } = useI18n()
+  const isDark = theme === 'dark'
+
   return (
-    <button
-      onClick={onClick}
-      className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm transition ${
-        active 
-          ? 'bg-blue-600 text-white' 
-          : 'text-slate-400 hover:text-white hover:bg-slate-700'
-      }`}
+    <ConfigProvider
+      locale={language === 'zh' ? zhCN : enUS}
+      theme={{
+        algorithm: isDark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
+        token: {
+          colorPrimary: '#1890ff',
+          borderRadius: 6,
+        },
+      }}
     >
-      {icon}
-      {label}
-    </button>
+      <AppContent />
+    </ConfigProvider>
   )
 }
 
-export default App
+// Wrap with providers
+function AppWrapper() {
+  return (
+    <ThemeProvider>
+      <I18nProvider>
+        <App />
+      </I18nProvider>
+    </ThemeProvider>
+  )
+}
+
+export default AppWrapper
