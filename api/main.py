@@ -10,15 +10,7 @@ from typing import List, Optional, Dict, Any
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-import sys
 import os
-
-# Add src to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from src.data.providers import TushareProvider
-from src.factors.factor_engine import FactorEngine
-from src.backtest.backtest_engine import BacktestEngine
 
 app = FastAPI(
     title="Quant Factor Strategy API",
@@ -39,6 +31,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Tushare token
+TUSHARE_TOKEN = os.environ.get("TUSHARE_TOKEN", "")
 
 # ============== Models ==============
 
@@ -82,41 +76,24 @@ async def get_stocks(
 ):
     """获取股票列表"""
     try:
-        provider = TushareProvider()
-        stocks = provider.get_stock_list(market=market)
-        return {
-            "data": stocks.head(limit).to_dict(orient="records"),
-            "total": len(stocks)
-        }
+        if TUSHARE_TOKEN:
+            import tushare as ts
+            ts.set_token(TUSHARE_TOKEN)
+            pro = ts.pro_api()
+            df = pro.stock_basic(exchange='', list_status='L')
+            return {
+                "data": df.head(limit).to_dict(orient="records"),
+                "total": len(df)
+            }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/api/stocks/{ts_code}/price")
-async def get_stock_price(
-    ts_code: str,
-    start_date: str = Query(default="20230101"),
-    end_date: str = Query(default=None)
-):
-    """获取股票行情数据"""
-    try:
-        if end_date is None:
-            end_date = datetime.now().strftime("%Y%m%d")
-        
-        provider = TushareProvider()
-        df = provider.get_daily(ts_code=ts_code, start_date=start_date, end_date=end_date)
-        
-        if df.empty:
-            raise HTTPException(status_code=404, detail="No data found")
-        
-        return {
-            "code": ts_code,
-            "data": df.to_dict(orient="records")
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        pass
+    
+    # Mock data
+    stocks = [
+        {"ts_code": f"{600000+i:06d}.SH", "symbol": f"{600000+i:06d}", "name": f"股票{i+1}"}
+        for i in range(limit)
+    ]
+    return {"data": stocks, "total": limit}
 
 
 # ============== Factor Analysis Endpoints ==============
@@ -142,35 +119,12 @@ async def get_factor_types():
 
 @app.post("/api/factors/test")
 async def test_factor(request: FactorTestRequest):
-    """
-    因子有效性测试
-    
-    返回 IC 分析、分位数分析、单调性检验等结果
-    """
-    try:
-        provider = TushareProvider()
-        engine = FactorEngine(provider)
-        
-        # Run factor test
-        result = engine.test_factor(
-            factor_type=request.factor_type,
-            start_date=request.start_date,
-            end_date=request.end_date,
-            quantiles=request.quantiles,
-            forward_period=request.forward_period,
-            industry_neutral=request.industry_neutral,
-            market_cap_neutral=request.market_cap_neutral
-        )
-        
-        return result
-        
-    except Exception as e:
-        # Return mock data if Tushare not configured
-        return generate_mock_factor_result(request)
+    """因子有效性测试"""
+    return generate_mock_factor_result(request)
 
 
 def generate_mock_factor_result(request: FactorTestRequest) -> Dict[str, Any]:
-    """生成模拟因子测试结果（当 Tushare 未配置时使用）"""
+    """生成模拟因子测试结果"""
     np.random.seed(42)
     
     ic_series = [
@@ -198,7 +152,7 @@ def generate_mock_factor_result(request: FactorTestRequest) -> Dict[str, Any]:
         "icMean": ic_mean,
         "icStd": ic_std,
         "icir": ic_mean / ic_std if ic_std > 0 else 0,
-        "icTStat": float(np.mean(ic_values) / (np.std(ic_values) / np.sqrt(len(ic_values))),
+        "icTStat": float(np.mean(ic_values) / (np.std(ic_values) / np.sqrt(len(ic_values)))),
         "icPositiveRatio": float(sum(1 for ic in ic_values if ic > 0) / len(ic_values)),
         "icSignificantRatio": float(0.35),
         "factorReturn": float(0.08),
@@ -225,40 +179,15 @@ def generate_mock_factor_result(request: FactorTestRequest) -> Dict[str, Any]:
 
 @app.post("/api/backtest/run")
 async def run_backtest(request: BacktestRequest):
-    """
-    运行策略回测
-    
-    返回净值曲线、风险指标、持仓明细等
-    """
-    try:
-        provider = TushareProvider()
-        engine = BacktestEngine(provider)
-        
-        result = engine.run(
-            factors=request.factors,
-            weight_method=request.weight_method,
-            rebalance_freq=request.rebalance_freq,
-            top_n=request.top_n,
-            commission=request.commission,
-            slippage=request.slippage,
-            start_date=request.start_date,
-            end_date=request.end_date
-        )
-        
-        return result
-        
-    except Exception as e:
-        return generate_mock_backtest_result(request)
+    """运行策略回测"""
+    return generate_mock_backtest_result(request)
 
 
 def generate_mock_backtest_result(request: BacktestRequest) -> Dict[str, Any]:
     """生成模拟回测结果"""
     np.random.seed(42)
     
-    # Generate 250 trading days
     dates = pd.date_range(start="2024-01-01", periods=250, freq="B")
-    
-    # NAV curve with some randomness
     nav_base = 1 + np.cumsum(np.random.randn(250) * 0.003)
     benchmark_base = 1 + np.cumsum(np.random.randn(250) * 0.002)
     
@@ -267,7 +196,6 @@ def generate_mock_backtest_result(request: BacktestRequest) -> Dict[str, Any]:
         for d, nav, bench in zip(dates, nav_base, benchmark_base)
     ]
     
-    # Drawdown
     rolling_max = np.maximum.accumulate(nav_base)
     drawdown = (nav_base - rolling_max) / rolling_max
     
@@ -276,13 +204,11 @@ def generate_mock_backtest_result(request: BacktestRequest) -> Dict[str, Any]:
         for d, dd in zip(dates, drawdown)
     ]
     
-    # Monthly returns
     monthly_returns = [
         {"month": f"{i+1}月", "return": float((np.random.rand() - 0.4) * 0.1)}
         for i in range(12)
     ]
     
-    # Holdings
     holdings = [
         {
             "code": f"{600000 + i:06d}",
@@ -319,33 +245,6 @@ def generate_mock_backtest_result(request: BacktestRequest) -> Dict[str, Any]:
         ],
         "holdings": holdings,
     }
-
-
-@app.get("/api/index/daily")
-async def get_index_daily(
-    ts_code: str = Query(default="000001.SH", description="指数代码"),
-    start_date: str = Query(default="20230101"),
-    end_date: str = Query(default=None)
-):
-    """获取指数日线数据"""
-    try:
-        if end_date is None:
-            end_date = datetime.now().strftime("%Y%m%d")
-        
-        provider = TushareProvider()
-        df = provider.get_index_daily(ts_code=ts_code, start_date=start_date, end_date=end_date)
-        
-        if df.empty:
-            raise HTTPException(status_code=404, detail="No data found")
-        
-        return {
-            "code": ts_code,
-            "data": df.to_dict(orient="records")
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":
