@@ -1,29 +1,20 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Card, Row, Col, Select, InputNumber, Button, Space,
-  Statistic, Table, Tag, Tabs, Typography, Progress, Tooltip,
-  Collapse, Divider, message, Spin, Alert, Descriptions, Badge,
-  Checkbox, DatePicker, Form, Input, Switch
+  Statistic, Typography, message, Descriptions, Checkbox, Tabs
 } from 'antd';
 import {
-  PlayCircleOutlined, SettingOutlined, LineChartOutlined,
-  BarChartOutlined, PieChartOutlined, ThunderboltOutlined,
-  SafetyCertificateOutlined, DashboardOutlined, WarningOutlined,
-  CheckCircleOutlined, CloseCircleOutlined, InfoCircleOutlined,
-  CalendarOutlined, DatabaseOutlined, StockOutlined
+  PlayCircleOutlined, SettingOutlined,
+  SafetyCertificateOutlined, DatabaseOutlined, StockOutlined
 } from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
 import { useTheme } from '../theme';
-import type { EChartsOption } from 'echarts';
-import type { RowNode } from 'ag-grid-community';
 import { AgGridReact } from 'ag-grid-react';
+import { ColDef } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 
-const { Title, Text } = Typography;
-const { Panel } = Collapse;
-const { TabPane } = Tabs;
-const { RangePicker } = DatePicker;
+const { Title } = Typography;
 
 interface BacktestResult {
   totalReturn: number;
@@ -125,7 +116,6 @@ export default function BacktestPage() {
   const [weightMethod, setWeightMethod] = useState('equal');
   const [rebalanceFreq, setRebalanceFreq] = useState('monthly');
   const [topN, setTopN] = useState(50);
-  const [maxWeight, setMaxWeight] = useState(0.05);
   const [commission, setCommission] = useState(0.001);
   const [slippage, setSlippage] = useState(0.001);
   const [running, setRunning] = useState(false);
@@ -144,7 +134,7 @@ export default function BacktestPage() {
   };
 
   // NAV Chart
-  const navChartOption: EChartsOption = useMemo(() => ({
+  const navChartOption = useMemo(() => ({
     title: { text: '净值曲线', left: 'center', textStyle: { color: isDark ? '#fff' : '#333' } },
     tooltip: { trigger: 'axis' },
     legend: { data: ['策略', '基准'], top: 30 },
@@ -180,7 +170,7 @@ export default function BacktestPage() {
   }), [result?.navCurve, isDark]);
 
   // Drawdown Chart
-  const drawdownChartOption: EChartsOption = useMemo(() => ({
+  const drawdownChartOption = useMemo(() => ({
     title: { text: '回撤曲线', left: 'center', textStyle: { color: isDark ? '#fff' : '#333' } },
     tooltip: { trigger: 'axis' },
     xAxis: {
@@ -203,7 +193,7 @@ export default function BacktestPage() {
   }), [result?.drawdownCurve, isDark]);
 
   // Monthly Returns Chart
-  const monthlyChartOption: EChartsOption = useMemo(() => ({
+  const monthlyChartOption = useMemo(() => ({
     title: { text: '月度收益', left: 'center', textStyle: { color: isDark ? '#fff' : '#333' } },
     tooltip: { trigger: 'axis' },
     xAxis: {
@@ -227,13 +217,13 @@ export default function BacktestPage() {
   }), [result?.monthlyReturns, isDark]);
 
   // Monthly Heatmap
-  const heatmapOption: EChartsOption = useMemo(() => {
+  const heatmapOption = useMemo(() => {
     const years = ['2022', '2023', '2024'];
     const months = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
     const data: [number, number, number][] = [];
     
-    years.forEach((year, yIndex) => {
-      months.forEach((month, mIndex) => {
+    years.forEach((_year, yIndex) => {
+      months.forEach((_month, mIndex) => {
         const value = (Math.random() - 0.45) * 0.15;
         data.push([mIndex, yIndex, value]);
       });
@@ -242,7 +232,7 @@ export default function BacktestPage() {
     return {
       title: { text: '月度收益热力图', left: 'center', textStyle: { color: isDark ? '#fff' : '#333' } },
       tooltip: {
-        formatter: (params: any) => {
+        formatter: (params: { data: number[] }) => {
           return `${years[params.data[1]]} ${months[params.data[0]]}: ${(params.data[2] * 100).toFixed(2)}%`;
         }
       },
@@ -260,7 +250,7 @@ export default function BacktestPage() {
         min: -0.15,
         max: 0.15,
         calculable: true,
-        orient: 'horizontal',
+        orient: 'horizontal' as const,
         left: 'center',
         bottom: 0,
         inRange: {
@@ -272,7 +262,7 @@ export default function BacktestPage() {
         data: data.map(d => [d[0], d[1], d[2]]),
         label: {
           show: true,
-          formatter: (params: any) => `${(params.data[2] * 100).toFixed(1)}%`
+          formatter: (params: { data: number[] }) => `${(params.data[2] * 100).toFixed(1)}%`
         }
       }],
       grid: { left: '15%', right: '10%', bottom: '20%', top: '15%' },
@@ -281,13 +271,13 @@ export default function BacktestPage() {
   }, [isDark]);
 
   // AG Grid Column Definitions
-  const holdingColumns = useMemo(() => [
+  const holdingColumns = useMemo<ColDef[]>(() => [
     { field: 'code', headerName: '代码', width: 100, pinned: 'left' },
     { field: 'name', headerName: '名称', width: 120 },
-    { field: 'weight', headerName: '权重', width: 100, valueFormatter: (p: any) => `${(p.value * 100).toFixed(2)}%` },
+    { field: 'weight', headerName: '权重', width: 100, valueFormatter: (params) => `${(params.value * 100).toFixed(2)}%` },
     { field: 'return', headerName: '收益', width: 100, 
-      valueFormatter: (p: any) => `${(p.value * 100).toFixed(2)}%`,
-      cellStyle: (p: any) => ({ color: p.value >= 0 ? '#52c41a' : '#ff4d4f' })
+      valueFormatter: (params) => `${(params.value * 100).toFixed(2)}%`,
+      cellStyle: (params) => ({ color: params.value >= 0 ? '#52c41a' : '#ff4d4f' })
     }
   ], []);
 
@@ -439,21 +429,21 @@ export default function BacktestPage() {
 
           {/* Charts */}
           <Tabs defaultActiveKey="nav">
-            <TabPane tab="净值曲线" key="nav">
+            <Tabs.TabPane tab="净值曲线" key="nav">
               <Card>
                 <div style={{ height: 400 }}>
                   <ReactECharts option={navChartOption} style={{ height: '100%' }} />
                 </div>
               </Card>
-            </TabPane>
-            <TabPane tab="回撤曲线" key="drawdown">
+            </Tabs.TabPane>
+            <Tabs.TabPane tab="回撤曲线" key="drawdown">
               <Card>
                 <div style={{ height: 300 }}>
                   <ReactECharts option={drawdownChartOption} style={{ height: '100%' }} />
                 </div>
               </Card>
-            </TabPane>
-            <TabPane tab="月度收益" key="monthly">
+            </Tabs.TabPane>
+            <Tabs.TabPane tab="月度收益" key="monthly">
               <Row gutter={16}>
                 <Col xs={24} lg={12}>
                   <Card>
@@ -470,8 +460,8 @@ export default function BacktestPage() {
                   </Card>
                 </Col>
               </Row>
-            </TabPane>
-            <TabPane tab="持仓明细" key="holdings">
+            </Tabs.TabPane>
+            <Tabs.TabPane tab="持仓明细" key="holdings">
               <Card>
                 <div className={isDark ? 'ag-theme-alpine-dark' : 'ag-theme-alpine'} style={{ height: 400 }}>
                   <AgGridReact
@@ -483,7 +473,7 @@ export default function BacktestPage() {
                   />
                 </div>
               </Card>
-            </TabPane>
+            </Tabs.TabPane>
           </Tabs>
 
           {/* Risk Analysis */}

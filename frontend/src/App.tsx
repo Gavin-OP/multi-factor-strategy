@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { 
   ConfigProvider, Layout, Menu, Button, Dropdown, Space, theme as antdTheme,
   Typography, Tooltip
@@ -65,7 +65,6 @@ function AppContent() {
         collapsed={collapsed}
         onCollapse={setCollapsed}
         breakpoint="md"
-        hiddenBreakpoint="md"
         style={{
           background: isDark ? '#141414' : '#fff',
         }}

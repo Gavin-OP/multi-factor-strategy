@@ -1,22 +1,18 @@
-import React, { useState, useMemo } from 'react';
+import { useState } from 'react';
 import {
   Card, Row, Col, Select, InputNumber, Checkbox, Button, Space,
-  Statistic, Table, Tag, Tabs, Typography, Progress, Tooltip,
-  Collapse, Divider, message, Spin, Alert, Descriptions, Badge
+  Statistic, Tag, Typography, Progress, Divider, message, Descriptions
 } from 'antd';
 import {
   PlayCircleOutlined, SettingOutlined, LineChartOutlined,
-  BarChartOutlined, PieChartOutlined, ThunderboltOutlined,
-  SafetyCertificateOutlined, DashboardOutlined, WarningOutlined,
-  CheckCircleOutlined, CloseCircleOutlined, InfoCircleOutlined
+  BarChartOutlined, SafetyCertificateOutlined, DashboardOutlined,
+  CheckCircleOutlined, CloseCircleOutlined, WarningOutlined
 } from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
 import { useTheme } from '../theme';
 import type { EChartsOption } from 'echarts';
 
 const { Title, Text } = Typography;
-const { Panel } = Collapse;
-const { TabPane } = Tabs;
 
 interface FactorResult {
   name: string;
@@ -119,7 +115,7 @@ export default function FactorAnalysisPage() {
   };
 
   // IC Time Series Chart
-  const icChartOption: EChartsOption = useMemo(() => ({
+  const icChartOption: EChartsOption = {
     title: { text: 'IC 时间序列', left: 'center', textStyle: { color: isDark ? '#fff' : '#333' } },
     tooltip: { trigger: 'axis' },
     xAxis: {
@@ -140,10 +136,10 @@ export default function FactorAnalysisPage() {
     }],
     grid: { left: '10%', right: '10%', bottom: '15%', top: '15%' },
     backgroundColor: 'transparent'
-  }), [result?.icSeries, isDark]);
+  };
 
   // Quantile Returns Chart
-  const quantileChartOption: EChartsOption = useMemo(() => ({
+  const quantileChartOption: EChartsOption = {
     title: { text: '分位数收益', left: 'center', textStyle: { color: isDark ? '#fff' : '#333' } },
     tooltip: { trigger: 'axis' },
     xAxis: {
@@ -171,10 +167,10 @@ export default function FactorAnalysisPage() {
     }],
     grid: { left: '10%', right: '10%', bottom: '15%', top: '15%' },
     backgroundColor: 'transparent'
-  }), [result?.quantileReturns, isDark]);
+  };
 
   // IC Decay Chart
-  const decayChartOption: EChartsOption = useMemo(() => ({
+  const decayChartOption: EChartsOption = {
     title: { text: 'IC 衰减曲线', left: 'center', textStyle: { color: isDark ? '#fff' : '#333' } },
     tooltip: { trigger: 'axis' },
     xAxis: {
@@ -194,7 +190,7 @@ export default function FactorAnalysisPage() {
     }],
     grid: { left: '10%', right: '10%', bottom: '15%', top: '15%' },
     backgroundColor: 'transparent'
-  }), [result?.decayCurve, isDark]);
+  };
 
   const getGradeColor = (grade: string) => {
     const colors: Record<string, string> = {
@@ -326,7 +322,7 @@ export default function FactorAnalysisPage() {
                       type="circle"
                       percent={result.score * 100}
                       strokeColor={result.isEffective ? '#52c41a' : '#faad14'}
-                      format={(p) => `${result.grade}`}
+                      format={() => result.grade}
                     />
                   </Col>
                 </Row>

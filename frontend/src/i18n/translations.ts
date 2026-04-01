@@ -33,7 +33,7 @@ export const translations = {
       value: '价值因子',
       quality: '质量因子',
       growth: '成长因子',
-      volatility: '波动率因子',
+      volatilityFactor: '波动率因子',
       liquidity: '流动性因子',
       sentiment: '情绪因子',
       technical: '技术因子',
@@ -167,8 +167,8 @@ export const translations = {
       winRate: '胜率',
       profitLossRatio: '盈亏比',
       
-      monthly: '月度收益',
-      yearly: '年度收益',
+      monthlyReturns: '月度收益',
+      yearlyReturns: '年度收益',
       
       positions: '持仓分析',
       avgHoldingPeriod: '平均持仓周期',
@@ -235,7 +235,7 @@ export const translations = {
       value: 'Value',
       quality: 'Quality',
       growth: 'Growth',
-      volatility: 'Volatility',
+      volatilityFactor: 'Volatility',
       liquidity: 'Liquidity',
       sentiment: 'Sentiment',
       technical: 'Technical',
@@ -369,8 +369,8 @@ export const translations = {
       winRate: 'Win Rate',
       profitLossRatio: 'Profit/Loss Ratio',
       
-      monthly: 'Monthly Returns',
-      yearly: 'Yearly Returns',
+      monthlyReturns: 'Monthly Returns',
+      yearlyReturns: 'Yearly Returns',
       
       positions: 'Position Analysis',
       avgHoldingPeriod: 'Avg Holding Period',
