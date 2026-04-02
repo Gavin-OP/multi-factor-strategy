@@ -8,18 +8,29 @@ from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 import os
 
-from .routes import data_router, factors_router, backtest_router
+from .router.v1 import api_router
 
 # Create FastAPI app
 app = FastAPI(
     title="Quant Factor Strategy API",
-    description="多因子量化策略分析平台 API - 支持 Tushare 真实数据",
+    description="""
+    多因子量化策略分析平台 API
+    
+    ## 功能模块
+    - **因子分析**: 因子计算、验证、评估
+    - **回测引擎**: 策略回测、绩效分析
+    - **数据服务**: 股票数据、指数数据
+    
+    ## 数据来源
+    - Tushare (需配置 TUSHARE_TOKEN)
+    - Mock 数据 (Tushare 不可用时自动切换)
+    """,
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc"
 )
 
-# CORS configuration for GitHub Pages
+# CORS configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -33,9 +44,7 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(data_router)
-app.include_router(factors_router)
-app.include_router(backtest_router)
+app.include_router(api_router, prefix="/api/v1")
 
 
 @app.get("/")

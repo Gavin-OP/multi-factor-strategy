@@ -1,60 +1,149 @@
 # Quant Factor Strategy Framework
 
-[![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Deploy](https://github.com/Gavin-OP/multi-factor-strategy/actions/workflows/deploy.yml/badge.svg)](https://github.com/Gavin-OP/multi-factor-strategy/actions)
 
-一个专业的量化因子策略框架，按照百亿量化私募标准设计和实现。
+一个专业的多因子量化策略框架，采用分层架构设计。
 
 ## 🌐 在线演示
 
 - **前端**: [https://gavin-op.github.io/multi-factor-strategy/](https://gavin-op.github.io/multi-factor-strategy/)
-- **API 文档**: 部署后端后访问 `/docs`
+- **API 文档**: https://quant-factor-api.onrender.com/docs
 
-## 📋 项目概述
+---
 
-本项目是一个完整的量化因子研究和策略实现框架，包含从数据处理、因子挖掘、信号生成、组合构建到回测评估的全流程实现。
-
-### 核心特性
-
-- **📐 架构设计**: 分层架构，Separation of Concerns，易于维护和扩展
-- **📊 因子库**: 实现 14 个量价因子（参考 WorldQuant 101）
-- **🔍 因子测试**: IC/IR 分析、分组测试、单调性检验、换手率分析
-- **⚙️ 信号生成**: 多因子融合、信号标准化、股票筛选
-- **💼 组合构建**: 多种加权方式、再平衡逻辑、持仓管理
-- **📈 回测引擎**: 完整回测系统
-- **📉 风险管理**: VaR/CVaR、最大回撤、风险预算
-- **📊 可视化**: React + Ant Design + ECharts 仪表盘
-
-## 🗂️ 项目结构
+## 🏗️ 项目架构
 
 ```
-quant_factor_strategy/
-├── api/                        # 后端 API
-│   ├── main.py                # FastAPI 主应用
-│   └── requirements.txt       # Python 依赖
-├── frontend/                   # 前端
-│   ├── src/
-│   │   ├── pages/            # 页面组件
-│   │   ├── components/       # 公共组件
-│   │   ├── i18n/             # 国际化
-│   │   └── theme/            # 主题配置
-│   └── package.json
-├── src/                       # 核心代码
-│   ├── data/                  # 数据层
-│   │   └── providers.py      # Tushare/AkShare 数据提供者
-│   ├── factors/              # 因子层
-│   │   └── factor_engine.py # 因子计算引擎
-│   ├── backtest/             # 回测层
-│   │   └── backtest_engine.py
-│   └── ...
-├── render.yaml               # Render 部署配置
-└── railway.json              # Railway 部署配置
+src/
+├── api/                    # API 层
+│   ├── main.py             # FastAPI 入口
+│   ├── router/v1/          # 路由定义
+│   │   ├── factor_router.py
+│   │   ├── backtest_router.py
+│   │   └── data_router.py
+│   ├── controller/         # 控制器
+│   │   ├── factor_controller.py
+│   │   ├── backtest_controller.py
+│   │   └── data_controller.py
+│   └── schema/             # 请求/响应格式
+│       └── __init__.py
+│
+├── application/            # 应用层
+│   ├── orchestrator/       # 编排器
+│   │   ├── factor_research_orchestrator.py
+│   │   └── strategy_backtest_orchestrator.py
+│   ├── usecase/            # 用例
+│   │   ├── factor/
+│   │   │   ├── compute_factor.py
+│   │   │   └── validate_factor.py
+│   │   └── backtest/
+│   │       └── run_backtest.py
+│   └── workflow/           # 工作流
+│
+├── service/                # 服务层（核心业务逻辑）
+│   ├── factor/
+│   │   ├── factor_compute_service.py
+│   │   ├── factor_validate_service.py
+│   │   └── factor_analyze_service.py
+│   ├── signal/
+│   │   └── signal_generation_service.py
+│   ├── backtest/
+│   │   └── backtest_engine_service.py
+│   └── data/
+│       └── data_quality_service.py
+│
+├── model/                  # 模型层
+│   ├── factor/
+│   │   └── __init__.py     # FactorMeta, FactorValue, FactorResult
+│   ├── signal/
+│   │   └── __init__.py     # Signal, TradingSignal
+│   ├── strategy/
+│   │   └── __init__.py     # Strategy, Portfolio, Position, RebalancePlan
+│   ├── backtest/
+│   │   └── __init__.py     # BacktestResult, PerformanceMetric, TradeRecord
+│   ├── risk/
+│   │   └── __init__.py     # RiskMetric, Exposure
+│   └── market/
+│       └── __init__.py     # Stock, Price, Index
+│
+├── library/                # 因子库/信号库
+│   ├── factor_library.py   # 因子注册、存储、查询
+│   └── signal_library.py   # 信号注册、存储、查询
+│
+├── repository/             # 数据访问层
+│   └── tushare_repository.py
+│
+├── config/                 # 配置
+│   └── settings.py
+│
+└── utils/                  # 工具函数
+    └── __init__.py
 ```
+
+---
+
+## 📊 架构层级说明
+
+| 层级 | 职责 | 示例 |
+|------|------|------|
+| **api/router** | URL 路由定义 | `@router.post("/factors/test")` |
+| **api/controller** | 处理 HTTP 请求/响应 | 调用 orchestrator，返回响应 |
+| **application/orchestrator** | 编排多个 usecase | 协调因子计算、验证、注册流程 |
+| **application/usecase** | 单一业务场景 | 验证一个因子 |
+| **service** | 核心业务逻辑 | IC 计算、单调性检验 |
+| **library** | 因子/信号管理 | 注册、存储、查询 |
+| **repository** | 数据访问 | 从 Tushare 获取数据 |
+| **model** | 数据结构 | Stock, Factor, Portfolio |
+
+---
+
+## 🔄 数据流向
+
+```
+HTTP Request
+    ↓
+Router（路由定义）
+    ↓
+Controller（请求处理）
+    ↓
+Orchestrator（业务编排）
+    ↓
+UseCase（用例执行）
+    ↓
+Service（业务逻辑）
+    ↓
+Repository（数据访问）
+    ↓
+Tushare API
+```
+
+---
+
+## 🎯 核心流程
+
+```
+数据获取 → 因子挖掘 → 因子验证 → 因子注册 → 信号生成 → 组合构建 → 策略回测 → 风险管理
+```
+
+---
 
 ## 🚀 快速开始
 
-### 前端 (本地开发)
+### 后端
+
+```bash
+# 安装依赖
+pip install -r requirements.txt
+
+# 设置环境变量
+export TUSHARE_TOKEN=your_token_here
+
+# 启动服务
+uvicorn src.api.main:app --reload
+```
+
+### 前端
 
 ```bash
 cd frontend
@@ -62,79 +151,45 @@ pnpm install
 pnpm dev
 ```
 
-### 后端 (本地开发)
+---
 
-```bash
-# 安装依赖
-pip install -r api/requirements.txt
-pip install tushare
+## 📦 部署
 
-# 设置环境变量
-export TUSHARE_TOKEN=your_token_here
+### 后端 (Render)
 
-# 启动服务
-cd api
-uvicorn main:app --reload
-```
+1. 连接 GitHub 仓库
+2. 设置：
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `uvicorn src.api.main:app --host 0.0.0.0 --port $PORT`
+3. 添加环境变量：`TUSHARE_TOKEN`
 
-## 📦 部署指南
+### 前端 (GitHub Pages)
 
-### 方案一：Render (推荐)
+自动部署，更新 `frontend/.env.production` 中的 `VITE_API_URL`
 
-1. Fork 本仓库
-2. 访问 [Render](https://render.com/) 并连接 GitHub
-3. 创建新的 Web Service
-4. 选择本仓库，Render 会自动检测 `render.yaml`
-5. 设置环境变量 `TUSHARE_TOKEN`
-6. 部署完成后，更新前端的 `VITE_API_URL`
-
-### 方案二：Railway
-
-1. Fork 本仓库
-2. 访问 [Railway](https://railway.app/) 并连接 GitHub
-3. 选择本仓库部署
-4. 设置环境变量 `TUSHARE_TOKEN`
-5. 部署完成后获得后端 URL
-
-### 前端部署
-
-前端自动部署到 GitHub Pages，只需更新 `frontend/.env.production` 中的 API URL：
-
-```env
-VITE_API_URL=https://your-backend-url.onrender.com
-```
+---
 
 ## 🔑 环境变量
 
 | 变量名 | 说明 | 必需 |
 |--------|------|------|
 | `TUSHARE_TOKEN` | Tushare API Token | 是 |
-| `DATABASE_URL` | PostgreSQL 连接字符串 | 否 |
-| `ALLOWED_ORIGINS` | CORS 允许的域名 | 否 |
 
-## 📊 数据源
+---
 
-| 数据源 | 类型 | 说明 |
-|--------|------|------|
-| [Tushare](https://tushare.pro/) | 免费/付费 | A股主要数据源 |
-| [AkShare](https://akshare.xyz/) | 免费 | 开源财经数据接口 |
-| [BaoStock](http://baostock.com/) | 免费 | 证券宝数据 |
+## 📝 命名规范
 
-## 🛠️ 技术栈
+| 操作 | 命名 | 职责 |
+|------|------|------|
+| 计算因子 | `compute_factor` | 计算因子值 |
+| 验证因子 | `validate_factor` | 验证预测能力 |
+| 分析因子 | `analyze_factor` | IC/IR 分析 |
+| 评估因子 | `evaluate_factor` | 综合评分 |
+| 筛选因子 | `screen_factor` | 筛选有效因子 |
+| 注册因子 | `register_factor` | 注册到因子库 |
 
-### 前端
-- React 18 + TypeScript
-- Ant Design 5
-- ECharts 5
-- AG Grid
-- TailwindCSS
+---
 
-### 后端
-- Python 3.11
-- FastAPI
-- Pandas / NumPy
-- Tushare
-
-## 📝 License
+## 📄 License
 
 MIT License

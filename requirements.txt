@@ -6,3 +6,4 @@ numpy==1.26.3
 tushare==1.4.3
 python-dotenv==1.0.0
 requests==2.31.0
+scipy==1.11.4
