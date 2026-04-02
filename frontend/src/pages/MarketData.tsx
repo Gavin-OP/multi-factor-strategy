@@ -11,7 +11,7 @@ import {
 import ReactECharts from 'echarts-for-react';
 import { useTheme } from '../theme';
 import type { EChartsOption } from 'echarts';
-import dayjs from 'dayjs';
+import dayjs, { type Dayjs } from 'dayjs';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -59,7 +59,7 @@ const mainIndices = [
 type PeriodType = 'daily' | 'weekly' | 'monthly';
 
 // 预设时间范围
-const datePresets = [
+const datePresets: { label: string; value: [Dayjs, Dayjs] }[] = [
   { label: '近1月', value: [dayjs().subtract(1, 'month'), dayjs()] },
   { label: '近3月', value: [dayjs().subtract(3, 'month'), dayjs()] },
   { label: '近6月', value: [dayjs().subtract(6, 'month'), dayjs()] },
