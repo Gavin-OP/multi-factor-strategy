@@ -1,17 +1,20 @@
 import { useState, useEffect } from 'react';
 import {
-  Card, Row, Col, Select, Input, Radio, Space, Typography, Tag,
-  Spin, message, Tabs, Table, Button, Modal, Descriptions
+  Card, Row, Col, Select, Input, Space, Typography, Tag,
+  Spin, message, Tabs, Table, Button, Modal, Descriptions,
+  DatePicker, Segmented
 } from 'antd';
 import {
   SearchOutlined, LineChartOutlined, DatabaseOutlined,
-  CodeOutlined, CopyOutlined, CheckOutlined
+  CodeOutlined, CopyOutlined, CheckOutlined, CalendarOutlined
 } from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
 import { useTheme } from '../theme';
 import type { EChartsOption } from 'echarts';
+import dayjs from 'dayjs';
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
+const { RangePicker } = DatePicker;
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -52,6 +55,18 @@ const mainIndices = [
   { ts_code: '000905.SH', name: '中证500' },
 ];
 
+// 周期类型
+type PeriodType = 'daily' | 'weekly' | 'monthly';
+
+// 预设时间范围
+const datePresets = [
+  { label: '近1月', value: [dayjs().subtract(1, 'month'), dayjs()] },
+  { label: '近3月', value: [dayjs().subtract(3, 'month'), dayjs()] },
+  { label: '近6月', value: [dayjs().subtract(6, 'month'), dayjs()] },
+  { label: '近1年', value: [dayjs().subtract(1, 'year'), dayjs()] },
+  { label: '近3年', value: [dayjs().subtract(3, 'year'), dayjs()] },
+];
+
 export default function MarketDataPage() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -61,6 +76,11 @@ export default function MarketDataPage() {
   const [indexData, setIndexData] = useState<IndexData[]>([]);
   const [indexLoading, setIndexLoading] = useState(false);
   const [indexSource, setIndexSource] = useState('mock');
+  const [indexDateRange, setIndexDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
+    dayjs().subtract(1, 'year'),
+    dayjs()
+  ]);
+  const [indexPeriod, setIndexPeriod] = useState<PeriodType>('daily');
 
   // 股票搜索状态
   const [searchKeyword, setSearchKeyword] = useState('');
@@ -68,21 +88,29 @@ export default function MarketDataPage() {
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
   const [stockData, setStockData] = useState<IndexData[]>([]);
   const [stockLoading, setStockLoading] = useState(false);
-  const [stockPeriod, setStockPeriod] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   const [stockSource, setStockSource] = useState('mock');
+  const [stockDateRange, setStockDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
+    dayjs().subtract(1, 'year'),
+    dayjs()
+  ]);
+  const [stockPeriod, setStockPeriod] = useState<PeriodType>('daily');
 
   // 因子代码状态
   const [factorCode, setFactorCode] = useState<FactorCode | null>(null);
   const [codeModalVisible, setCodeModalVisible] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  // 格式化日期为 API 格式
+  const formatDate = (date: dayjs.Dayjs) => date.format('YYYYMMDD');
+
   // 获取指数数据
   const fetchIndexData = async () => {
     setIndexLoading(true);
     try {
-      const endDate = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      const startDate = formatDate(indexDateRange[0]);
+      const endDate = formatDate(indexDateRange[1]);
       const response = await fetch(
-        `${API_BASE_URL}/api/v1/data/index/daily?ts_code=${selectedIndex}&start_date=20230101&end_date=${endDate}`
+        `${API_BASE_URL}/api/v1/data/index/daily?ts_code=${selectedIndex}&start_date=${startDate}&end_date=${endDate}`
       );
       if (response.ok) {
         const data = await response.json();
@@ -93,8 +121,7 @@ export default function MarketDataPage() {
       }
     } catch (error) {
       console.error('Error fetching index data:', error);
-      // 使用模拟数据
-      const mockData = generateMockIndexData(selectedIndex);
+      const mockData = generateMockIndexData(selectedIndex, indexDateRange[0], indexDateRange[1]);
       setIndexData(mockData);
       setIndexSource('mock');
       message.warning('后端服务未连接，使用模拟数据');
@@ -120,7 +147,6 @@ export default function MarketDataPage() {
       }
     } catch (error) {
       console.error('Error searching stocks:', error);
-      // 模拟搜索结果
       const mockResults = generateMockStocks(keyword);
       setSearchResults(mockResults);
     }
@@ -130,9 +156,10 @@ export default function MarketDataPage() {
   const fetchStockData = async (tsCode: string) => {
     setStockLoading(true);
     try {
-      const endDate = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      const startDate = formatDate(stockDateRange[0]);
+      const endDate = formatDate(stockDateRange[1]);
       const response = await fetch(
-        `${API_BASE_URL}/api/v1/data/stocks/${tsCode}/price?start_date=20230101&end_date=${endDate}`
+        `${API_BASE_URL}/api/v1/data/stocks/${tsCode}/price?start_date=${startDate}&end_date=${endDate}`
       );
       if (response.ok) {
         const data = await response.json();
@@ -143,7 +170,7 @@ export default function MarketDataPage() {
       }
     } catch (error) {
       console.error('Error fetching stock data:', error);
-      const mockData = generateMockIndexData(tsCode);
+      const mockData = generateMockIndexData(tsCode, stockDateRange[0], stockDateRange[1]);
       setStockData(mockData);
       setStockSource('mock');
       message.warning('使用模拟数据');
@@ -166,20 +193,22 @@ export default function MarketDataPage() {
   };
 
   // 生成模拟指数数据
-  const generateMockIndexData = (code: string): IndexData[] => {
+  const generateMockIndexData = (code: string, startDate: dayjs.Dayjs, endDate: dayjs.Dayjs): IndexData[] => {
     const data: IndexData[] = [];
     let price = code.includes('399') ? 2000 : 3000;
-    const startDate = new Date('2023-01-01');
+    const days = endDate.diff(startDate, 'day');
+    const dataPoints = Math.min(days, 250);
     
-    for (let i = 0; i < 100; i++) {
-      const date = new Date(startDate);
-      date.setDate(date.getDate() + i * 3);
+    for (let i = 0; i < dataPoints; i++) {
+      const date = startDate.add(i, 'day');
+      if (date.day() === 0 || date.day() === 6) continue; // 跳过周末
+      
       const change = (Math.random() - 0.5) * 0.03;
       price = price * (1 + change);
       
       data.push({
         ts_code: code,
-        trade_date: date.toISOString().slice(0, 10).replace(/-/g, ''),
+        trade_date: date.format('YYYYMMDD'),
         open: price * (1 + (Math.random() - 0.5) * 0.01),
         high: price * 1.015,
         low: price * 0.985,
@@ -214,26 +243,46 @@ export default function MarketDataPage() {
     }
   };
 
+  // 指数数据加载
   useEffect(() => {
     fetchIndexData();
-  }, [selectedIndex]);
+  }, [selectedIndex, indexDateRange, indexPeriod]);
 
+  // 股票数据加载
   useEffect(() => {
     if (selectedStock) {
       fetchStockData(selectedStock.ts_code);
     }
-  }, [selectedStock, stockPeriod]);
+  }, [selectedStock, stockDateRange, stockPeriod]);
 
   // K线图配置
-  const getKlineOption = (data: IndexData[], title: string): EChartsOption => ({
+  const getKlineOption = (data: IndexData[], title: string, period: PeriodType): EChartsOption => ({
     title: {
       text: title,
       left: 'center',
-      textStyle: { color: isDark ? '#fff' : '#333' }
+      textStyle: { color: isDark ? '#fff' : '#333', fontSize: 14 }
     },
     tooltip: {
       trigger: 'axis',
-      axisPointer: { type: 'cross' }
+      axisPointer: { type: 'cross' },
+      formatter: (params: any) => {
+        const klineData = params[0];
+        const volData = params[1];
+        if (!klineData) return '';
+        const [open, close, low, high] = klineData.data;
+        const change = ((close - open) / open * 100).toFixed(2);
+        const changeColor = close >= open ? '#ef5350' : '#26a69a';
+        return `
+          <div style="padding: 8px;">
+            <div style="font-weight: bold; margin-bottom: 8px;">${klineData.name}</div>
+            <div>开盘: ${open.toFixed(2)}</div>
+            <div>收盘: <span style="color: ${changeColor}">${close.toFixed(2)} (${change}%)</span></div>
+            <div>最高: ${high.toFixed(2)}</div>
+            <div>最低: ${low.toFixed(2)}</div>
+            ${volData ? `<div>成交量: ${(volData.data / 1e8).toFixed(2)}亿</div>` : ''}
+          </div>
+        `;
+      }
     },
     legend: {
       data: ['K线', '成交量'],
@@ -241,8 +290,8 @@ export default function MarketDataPage() {
       textStyle: { color: isDark ? '#aaa' : '#666' }
     },
     grid: [
-      { left: '10%', right: '8%', top: '15%', height: '50%' },
-      { left: '10%', right: '8%', top: '70%', height: '15%' }
+      { left: '8%', right: '8%', top: '12%', height: '52%' },
+      { left: '8%', right: '8%', top: '68%', height: '16%' }
     ],
     xAxis: [
       {
@@ -250,7 +299,8 @@ export default function MarketDataPage() {
         data: data.map(d => d.trade_date),
         axisLabel: {
           color: isDark ? '#aaa' : '#666',
-          rotate: 45
+          rotate: 45,
+          fontSize: 10
         },
         axisLine: { lineStyle: { color: isDark ? '#444' : '#ddd' } }
       },
@@ -271,13 +321,16 @@ export default function MarketDataPage() {
       {
         type: 'value',
         gridIndex: 1,
-        axisLabel: { color: isDark ? '#aaa' : '#666' },
+        axisLabel: { 
+          color: isDark ? '#aaa' : '#666',
+          formatter: (value: number) => value >= 1e8 ? `${(value/1e8).toFixed(0)}亿` : `${(value/1e4).toFixed(0)}万`
+        },
         splitLine: { show: false }
       }
     ],
     dataZoom: [
-      { type: 'inside', xAxisIndex: [0, 1], start: 50, end: 100 },
-      { type: 'slider', xAxisIndex: [0, 1], bottom: 5, start: 50, end: 100 }
+      { type: 'inside', xAxisIndex: [0, 1], start: 60, end: 100 },
+      { type: 'slider', xAxisIndex: [0, 1], bottom: 5, start: 60, end: 100, height: 20 }
     ],
     series: [
       {
@@ -296,17 +349,12 @@ export default function MarketDataPage() {
         type: 'bar',
         xAxisIndex: 1,
         yAxisIndex: 1,
-        data: data.map(d => d.vol),
-        itemStyle: {
-          color: {
-            type: 'linear',
-            x: 0, y: 0, x2: 0, y2: 1,
-            colorStops: [
-              { offset: 0, color: '#1890ff' },
-              { offset: 1, color: '#69c0ff' }
-            ]
+        data: data.map((d, i) => ({
+          value: d.vol,
+          itemStyle: {
+            color: data[i]?.close >= data[i]?.open ? '#ef5350' : '#26a69a'
           }
-        }
+        }))
       }
     ],
     backgroundColor: 'transparent'
@@ -318,19 +366,27 @@ export default function MarketDataPage() {
     return (
       <Card
         hoverable
+        size="small"
         style={{
           marginBottom: 8,
           borderColor: isSelected ? '#1890ff' : undefined,
-          background: isDark ? '#1f1f1f' : '#fff'
+          background: isDark ? '#1f1f1f' : '#fff',
+          cursor: 'pointer'
         }}
         onClick={() => setSelectedIndex(code)}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontWeight: isSelected ? 'bold' : 'normal' }}>{name}</span>
-          <Tag color={isSelected ? 'blue' : 'default'}>{code}</Tag>
+          <Tag color={isSelected ? 'blue' : 'default'} style={{ margin: 0 }}>{code}</Tag>
         </div>
       </Card>
     );
+  };
+
+  // 日期范围选择器配置
+  const rangePickerStyle = { 
+    width: 280,
+    background: isDark ? '#1f1f1f' : '#fff'
   };
 
   return (
@@ -341,9 +397,10 @@ export default function MarketDataPage() {
 
       <Row gutter={24}>
         {/* 左侧：指数列表 */}
-        <Col xs={24} lg={6}>
+        <Col xs={24} lg={5}>
           <Card
             title={<><DatabaseOutlined /> 指数列表</>}
+            size="small"
             style={{ marginBottom: 16, background: isDark ? '#1f1f1f' : '#fff' }}
           >
             {mainIndices.map(index => (
@@ -353,7 +410,7 @@ export default function MarketDataPage() {
         </Col>
 
         {/* 右侧：K线图和股票搜索 */}
-        <Col xs={24} lg={18}>
+        <Col xs={24} lg={19}>
           <Tabs
             defaultActiveKey="index"
             items={[
@@ -362,18 +419,52 @@ export default function MarketDataPage() {
                 label: '指数K线',
                 children: (
                   <Card style={{ background: isDark ? '#1f1f1f' : '#fff' }}>
-                    <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
-                      <Title level={4}>
-                        {mainIndices.find(i => i.ts_code === selectedIndex)?.name || '指数'}
-                        <Tag color={indexSource === 'tushare' ? 'green' : 'orange'} style={{ marginLeft: 8 }}>
-                          数据来源: {indexSource === 'tushare' ? 'Tushare' : '模拟数据'}
-                        </Tag>
-                      </Title>
-                    </div>
+                    {/* 控制栏 */}
+                    <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+                      <Col xs={24} sm={12} md={10}>
+                        <Space>
+                          <CalendarOutlined style={{ color: isDark ? '#aaa' : '#666' }} />
+                          <RangePicker
+                            value={indexDateRange}
+                            onChange={(dates) => {
+                              if (dates && dates[0] && dates[1]) {
+                                setIndexDateRange([dates[0], dates[1]]);
+                              }
+                            }}
+                            presets={datePresets}
+                            style={rangePickerStyle}
+                            allowClear={false}
+                          />
+                        </Space>
+                      </Col>
+                      <Col xs={24} sm={12} md={6}>
+                        <Segmented
+                          value={indexPeriod}
+                          onChange={(value) => setIndexPeriod(value as PeriodType)}
+                          options={[
+                            { label: '日线', value: 'daily' },
+                            { label: '周线', value: 'weekly' },
+                            { label: '月线', value: 'monthly' },
+                          ]}
+                          block
+                        />
+                      </Col>
+                      <Col xs={24} md={8}>
+                        <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+                          <Title level={4} style={{ margin: 0 }}>
+                            {mainIndices.find(i => i.ts_code === selectedIndex)?.name || '指数'}
+                          </Title>
+                          <Tag color={indexSource === 'tushare' ? 'green' : 'orange'}>
+                            数据来源: {indexSource === 'tushare' ? 'Tushare' : '模拟数据'}
+                          </Tag>
+                        </Space>
+                      </Col>
+                    </Row>
+
                     <Spin spinning={indexLoading}>
-                      <div style={{ height: 500 }}>
+                      <div style={{ height: 480 }}>
                         <ReactECharts
-                          option={getKlineOption(indexData, '')}
+                          option={getKlineOption(indexData, '', indexPeriod)}
                           style={{ height: '100%' }}
                         />
                       </div>
@@ -386,51 +477,85 @@ export default function MarketDataPage() {
                 label: '股票K线',
                 children: (
                   <Card style={{ background: isDark ? '#1f1f1f' : '#fff' }}>
-                    <Space style={{ marginBottom: 16 }} size="middle">
-                      <Input.Search
-                        placeholder="输入股票代码或名称"
-                        style={{ width: 250 }}
-                        value={searchKeyword}
-                        onChange={e => setSearchKeyword(e.target.value)}
-                        onSearch={searchStocks}
-                        enterButton={<SearchOutlined />}
-                      />
-                      {searchResults.length > 0 && (
-                        <Select
-                          placeholder="选择股票"
-                          style={{ width: 200 }}
-                          onChange={(value) => {
-                            const stock = searchResults.find(s => s.ts_code === value);
-                            setSelectedStock(stock || null);
-                          }}
-                          value={selectedStock?.ts_code}
-                          options={searchResults.map(s => ({
-                            value: s.ts_code,
-                            label: `${s.name} (${s.ts_code})`
-                          }))}
+                    {/* 控制栏 */}
+                    <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+                      <Col xs={24} sm={12} md={8}>
+                        <Input.Search
+                          placeholder="输入股票代码或名称搜索"
+                          value={searchKeyword}
+                          onChange={e => setSearchKeyword(e.target.value)}
+                          onSearch={searchStocks}
+                          enterButton={<SearchOutlined />}
+                          allowClear
                         />
+                      </Col>
+                      {searchResults.length > 0 && (
+                        <Col xs={24} sm={12} md={6}>
+                          <Select
+                            placeholder="选择股票"
+                            style={{ width: '100%' }}
+                            onChange={(value) => {
+                              const stock = searchResults.find(s => s.ts_code === value);
+                              setSelectedStock(stock || null);
+                            }}
+                            value={selectedStock?.ts_code}
+                            options={searchResults.map(s => ({
+                              value: s.ts_code,
+                              label: `${s.name} (${s.ts_code})`
+                            }))}
+                            showSearch
+                            filterOption={(input, option) =>
+                              (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                            }
+                          />
+                        </Col>
                       )}
-                      <Radio.Group value={stockPeriod} onChange={e => setStockPeriod(e.target.value)}>
-                        <Radio.Button value="daily">日线</Radio.Button>
-                        <Radio.Button value="weekly">周线</Radio.Button>
-                        <Radio.Button value="monthly">月线</Radio.Button>
-                      </Radio.Group>
-                    </Space>
+                      <Col xs={24} sm={12} md={6}>
+                        <Segmented
+                          value={stockPeriod}
+                          onChange={(value) => setStockPeriod(value as PeriodType)}
+                          options={[
+                            { label: '日线', value: 'daily' },
+                            { label: '周线', value: 'weekly' },
+                            { label: '月线', value: 'monthly' },
+                          ]}
+                          block
+                        />
+                      </Col>
+                      <Col xs={24} sm={12} md={6}>
+                        <Space>
+                          <CalendarOutlined style={{ color: isDark ? '#aaa' : '#666' }} />
+                          <RangePicker
+                            value={stockDateRange}
+                            onChange={(dates) => {
+                              if (dates && dates[0] && dates[1]) {
+                                setStockDateRange([dates[0], dates[1]]);
+                              }
+                            }}
+                            presets={datePresets}
+                            style={{ width: 240 }}
+                            allowClear={false}
+                          />
+                        </Space>
+                      </Col>
+                    </Row>
 
                     {selectedStock && (
                       <>
                         <div style={{ marginBottom: 16 }}>
-                          <Title level={4}>
-                            {selectedStock.name} ({selectedStock.ts_code})
-                            <Tag color={stockSource === 'tushare' ? 'green' : 'orange'} style={{ marginLeft: 8 }}>
+                          <Space>
+                            <Title level={4} style={{ margin: 0 }}>
+                              {selectedStock.name} ({selectedStock.ts_code})
+                            </Title>
+                            <Tag color={stockSource === 'tushare' ? 'green' : 'orange'}>
                               数据来源: {stockSource === 'tushare' ? 'Tushare' : '模拟数据'}
                             </Tag>
-                          </Title>
+                          </Space>
                         </div>
                         <Spin spinning={stockLoading}>
-                          <div style={{ height: 500 }}>
+                          <div style={{ height: 480 }}>
                             <ReactECharts
-                              option={getKlineOption(stockData, '')}
+                              option={getKlineOption(stockData, '', stockPeriod)}
                               style={{ height: '100%' }}
                             />
                           </div>
@@ -439,8 +564,9 @@ export default function MarketDataPage() {
                     )}
 
                     {!selectedStock && (
-                      <div style={{ textAlign: 'center', padding: 60, color: isDark ? '#666' : '#999' }}>
-                        请搜索并选择股票查看K线图
+                      <div style={{ textAlign: 'center', padding: 80, color: isDark ? '#666' : '#999' }}>
+                        <SearchOutlined style={{ fontSize: 48, marginBottom: 16, opacity: 0.5 }} />
+                        <div>请输入股票代码或名称搜索，选择后查看K线图</div>
                       </div>
                     )}
                   </Card>
@@ -465,10 +591,11 @@ export default function MarketDataPage() {
                         { id: 'liquidity_turnover', name: '换手率', category: '流动性因子' },
                       ]}
                       rowKey="id"
+                      pagination={false}
                       columns={[
-                        { title: '因子ID', dataIndex: 'id', key: 'id' },
-                        { title: '因子名称', dataIndex: 'name', key: 'name' },
-                        { title: '类别', dataIndex: 'category', key: 'category' },
+                        { title: '因子ID', dataIndex: 'id', key: 'id', width: 150 },
+                        { title: '因子名称', dataIndex: 'name', key: 'name', width: 120 },
+                        { title: '类别', dataIndex: 'category', key: 'category', width: 120 },
                         {
                           title: '操作',
                           key: 'action',
