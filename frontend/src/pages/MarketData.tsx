@@ -77,7 +77,7 @@ export default function MarketDataPage() {
   const [indexLoading, setIndexLoading] = useState(false);
   const [indexSource, setIndexSource] = useState('mock');
   const [indexDateRange, setIndexDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
-    dayjs().subtract(1, 'year'),
+    dayjs().subtract(3, 'month'),
     dayjs()
   ]);
   const [indexPeriod, setIndexPeriod] = useState<PeriodType>('daily');
@@ -90,7 +90,7 @@ export default function MarketDataPage() {
   const [stockLoading, setStockLoading] = useState(false);
   const [stockSource, setStockSource] = useState('mock');
   const [stockDateRange, setStockDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs]>([
-    dayjs().subtract(1, 'year'),
+    dayjs().subtract(3, 'month'),
     dayjs()
   ]);
   const [stockPeriod, setStockPeriod] = useState<PeriodType>('daily');
