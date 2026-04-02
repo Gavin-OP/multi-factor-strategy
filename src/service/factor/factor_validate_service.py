@@ -7,7 +7,7 @@ import pandas as pd
 from scipy import stats
 from typing import Dict, List, Tuple
 
-from ..model.factor import FactorMeta, FactorResult
+from ...model.factor import FactorMeta, FactorResult
 
 
 class FactorValidateService:

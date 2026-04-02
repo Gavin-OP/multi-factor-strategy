@@ -6,8 +6,8 @@ import numpy as np
 import pandas as pd
 from typing import Dict, List, Optional
 
-from ..model.factor import FactorMeta, FactorValue
-from ..model.market import Price
+from ...model.factor import FactorMeta, FactorValue
+from ...model.market import Price
 
 
 class FactorComputeService:

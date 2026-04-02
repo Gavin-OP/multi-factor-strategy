@@ -3,8 +3,8 @@ Backtest Router - 回测路由
 """
 
 from fastapi import APIRouter, Depends
-from ..schema import BacktestRequest
-from ..controller import BacktestController
+from ...schema import BacktestRequest
+from ...controller import BacktestController
 
 router = APIRouter(prefix="/backtest", tags=["backtest"])
 

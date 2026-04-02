@@ -3,7 +3,7 @@ Data Router - 数据路由
 """
 
 from fastapi import APIRouter, Depends, Query
-from ..controller import DataController
+from ...controller import DataController
 
 router = APIRouter(prefix="/data", tags=["data"])
 

@@ -5,9 +5,9 @@ Compute Factor UseCase - 计算因子用例
 from typing import Dict, Optional
 import pandas as pd
 
-from ...model.factor import FactorMeta, FactorValue
-from ...repository.tushare_repository import TushareRepository
-from ...service.factor.factor_compute_service import FactorComputeService
+from ....model.factor import FactorMeta, FactorValue
+from ....repository.tushare_repository import TushareRepository
+from ....service.factor.factor_compute_service import FactorComputeService
 
 
 class ComputeFactorUseCase:

@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from typing import Dict, List
 
-from ..model.signal import Signal, TradingSignal
+from ...model.signal import Signal, TradingSignal
 
 
 class SignalGenerationService:

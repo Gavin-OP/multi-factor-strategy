@@ -3,13 +3,14 @@ Validate Factor UseCase - 验证因子用例
 """
 
 import numpy as np
+import pandas as pd
 from typing import Dict, List
 
-from ...model.factor import FactorMeta, FactorResult
-from ...repository.tushare_repository import TushareRepository
-from ...service.factor.factor_compute_service import FactorComputeService
-from ...service.factor.factor_validate_service import FactorValidateService
-from ...service.factor.factor_analyze_service import FactorAnalyzeService
+from ....model.factor import FactorMeta, FactorResult
+from ....repository.tushare_repository import TushareRepository
+from ....service.factor.factor_compute_service import FactorComputeService
+from ....service.factor.factor_validate_service import FactorValidateService
+from ....service.factor.factor_analyze_service import FactorAnalyzeService
 
 
 class ValidateFactorUseCase:
@@ -216,6 +217,3 @@ class ValidateFactorUseCase:
             return '流动性因子'
         else:
             return '其他因子'
-
-
-import pandas as pd

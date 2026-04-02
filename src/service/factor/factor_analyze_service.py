@@ -5,7 +5,7 @@ Factor Analyze Service - 因子分析服务
 import numpy as np
 from typing import List, Dict
 
-from ..model.factor import FactorMeta
+from ...model.factor import FactorMeta
 
 
 class FactorAnalyzeService:

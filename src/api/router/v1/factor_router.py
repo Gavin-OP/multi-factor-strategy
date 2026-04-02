@@ -3,8 +3,8 @@ Factor Router - 因子路由
 """
 
 from fastapi import APIRouter, Depends
-from ..schema import FactorTestRequest
-from ..controller import FactorController
+from ...schema import FactorTestRequest
+from ...controller import FactorController
 
 router = APIRouter(prefix="/factors", tags=["factors"])
 
