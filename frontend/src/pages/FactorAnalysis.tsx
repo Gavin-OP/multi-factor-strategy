@@ -1,20 +1,23 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card, Row, Col, Select, InputNumber, Checkbox, Button, Space,
-  Statistic, Tag, Typography, Progress, Divider, message, Descriptions
+  Statistic, Tag, Typography, Progress, Divider, message, Descriptions,
+  DatePicker, Modal, Spin
 } from 'antd';
 import {
   PlayCircleOutlined, SettingOutlined, LineChartOutlined,
   BarChartOutlined, SafetyCertificateOutlined, DashboardOutlined,
-  CheckCircleOutlined, CloseCircleOutlined, WarningOutlined
+  CheckCircleOutlined, CloseCircleOutlined, WarningOutlined,
+  CodeOutlined, CopyOutlined, CheckOutlined, CalendarOutlined
 } from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
 import { useTheme } from '../theme';
 import type { EChartsOption } from 'echarts';
+import dayjs, { type Dayjs } from 'dayjs';
 
 const { Title, Text } = Typography;
+const { RangePicker } = DatePicker;
 
-// API base URL - will use environment variable or default
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 interface FactorResult {
@@ -43,25 +46,48 @@ interface FactorResult {
   quantileReturns: { quantile: number; return: number; sharpe: number }[];
   icSeries: { date: string; ic: number }[];
   decayCurve: { lag: number; ic: number }[];
+  dataSource: string;
 }
 
-const factorTypes = [
-  { value: 'momentum_1m', label: '1月动量' },
-  { value: 'momentum_3m', label: '3月动量' },
-  { value: 'momentum_6m', label: '6月动量' },
-  { value: 'momentum_12m', label: '12月动量' },
-  { value: 'value_pe', label: 'PE因子' },
-  { value: 'value_pb', label: 'PB因子' },
-  { value: 'quality_roe', label: 'ROE因子' },
-  { value: 'quality_roa', label: 'ROA因子' },
-  { value: 'volatility_1m', label: '1月波动率' },
-  { value: 'liquidity_turnover', label: '换手率' },
+interface FactorType {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  type: string;
+  formula?: string;
+}
+
+interface FactorCode {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  code: string;
+  parameters: Record<string, number>;
+  references: string[];
+  formula?: string;
+  type?: string;
+}
+
+const datePresets: { label: string; value: [Dayjs, Dayjs] }[] = [
+  { label: '近1月', value: [dayjs().subtract(1, 'month'), dayjs()] },
+  { label: '近3月', value: [dayjs().subtract(3, 'month'), dayjs()] },
+  { label: '近6月', value: [dayjs().subtract(6, 'month'), dayjs()] },
+  { label: '近1年', value: [dayjs().subtract(1, 'year'), dayjs()] },
 ];
 
 export default function FactorAnalysisPage() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
+  // 日期范围
+  const [dateRange, setDateRange] = useState<[Dayjs, Dayjs]>([
+    dayjs().subtract(3, 'month'),
+    dayjs()
+  ]);
+  
+  // 因子配置
   const [selectedFactor, setSelectedFactor] = useState('momentum_12m');
   const [quantiles, setQuantiles] = useState(5);
   const [forwardPeriod, setForwardPeriod] = useState(5);
@@ -69,21 +95,75 @@ export default function FactorAnalysisPage() {
   const [marketCapNeutral, setMarketCapNeutral] = useState(false);
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState<FactorResult | null>(null);
+  
+  // 因子列表
+  const [factorTypes, setFactorTypes] = useState<FactorType[]>([]);
+  const [loadingFactors, setLoadingFactors] = useState(true);
+  
+  // 因子代码弹窗
+  const [codeModalVisible, setCodeModalVisible] = useState(false);
+  const [factorCode, setFactorCode] = useState<FactorCode | null>(null);
+  const [loadingCode, setLoadingCode] = useState(false);
+  const [copied, setCopied] = useState(false);
 
+  // 获取因子列表
+  useEffect(() => {
+    const fetchFactorTypes = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/v1/factors/types`);
+        if (response.ok) {
+          const data = await response.json();
+          setFactorTypes(data.factors || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch factor types:', error);
+      }
+      setLoadingFactors(false);
+    };
+    fetchFactorTypes();
+  }, []);
+
+  // 获取因子代码
+  const fetchFactorCode = async (factorId: string) => {
+    setLoadingCode(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/v1/factors/${factorId}/code`);
+      if (response.ok) {
+        const data = await response.json();
+        setFactorCode(data);
+        setCodeModalVisible(true);
+      }
+    } catch (error) {
+      console.error('Failed to fetch factor code:', error);
+      message.error('获取因子代码失败');
+    }
+    setLoadingCode(false);
+  };
+
+  // 复制代码
+  const copyCode = () => {
+    if (factorCode?.code) {
+      navigator.clipboard.writeText(factorCode.code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      message.success('代码已复制');
+    }
+  };
+
+  // 运行测试
   const handleRunTest = async () => {
     setTesting(true);
     
     try {
-      // Call backend API
-      const response = await fetch(`${API_BASE_URL}/api/factors/test`, {
+      const response = await fetch(`${API_BASE_URL}/api/v1/factors/test`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           factor_type: selectedFactor,
-          start_date: '20230101',
-          end_date: '20231231',
+          start_date: dateRange[0].format('YYYYMMDD'),
+          end_date: dateRange[1].format('YYYYMMDD'),
           quantiles: quantiles,
           forward_period: forwardPeriod,
           industry_neutral: industryNeutral,
@@ -110,7 +190,7 @@ export default function FactorAnalysisPage() {
     setTesting(false);
   };
 
-  // Generate mock result (used when backend is not available)
+  // Generate mock result
   const generateMockResult = (factorType: string, q: number): FactorResult => {
     const icSeries = Array.from({ length: 24 }, (_, i) => ({
       date: `2024-${String(i % 12 + 1).padStart(2, '0')}`,
@@ -158,6 +238,7 @@ export default function FactorAnalysisPage() {
       quantileReturns,
       icSeries,
       decayCurve,
+      dataSource: 'mock'
     };
   };
 
@@ -251,6 +332,14 @@ export default function FactorAnalysisPage() {
     return colors[grade] || '#d9d9d9';
   };
 
+  // 按类别分组因子
+  const groupedFactors = factorTypes.reduce((acc, factor) => {
+    const category = factor.category || '其他';
+    if (!acc[category]) acc[category] = [];
+    acc[category].push(factor);
+    return acc;
+  }, {} as Record<string, FactorType[]>);
+
   return (
     <div style={{ padding: 24, background: isDark ? '#141414' : '#f5f5f5', minHeight: '100vh' }}>
       <Title level={2} style={{ color: isDark ? '#fff' : '#333', marginBottom: 24 }}>
@@ -260,28 +349,66 @@ export default function FactorAnalysisPage() {
       {/* Configuration Card */}
       <Card 
         title={<><SettingOutlined /> 参数配置</>}
-        style={{ marginBottom: 24 }}
+        style={{ marginBottom: 24, background: isDark ? '#1f1f1f' : '#fff' }}
         extra={
-          <Button
-            type="primary"
-            icon={<PlayCircleOutlined />}
-            onClick={handleRunTest}
-            loading={testing}
-            size="large"
-          >
-            运行测试
-          </Button>
+          <Space>
+            <Button
+              icon={<CodeOutlined />}
+              onClick={() => fetchFactorCode(selectedFactor)}
+              loading={loadingCode}
+            >
+              查看代码
+            </Button>
+            <Button
+              type="primary"
+              icon={<PlayCircleOutlined />}
+              onClick={handleRunTest}
+              loading={testing}
+              size="large"
+            >
+              运行测试
+            </Button>
+          </Space>
         }
       >
         <Row gutter={[16, 16]}>
+          <Col xs={24} sm={12} md={6}>
+            <div style={{ marginBottom: 8 }}>日期范围</div>
+            <RangePicker
+              value={dateRange}
+              onChange={(dates) => {
+                if (dates && dates[0] && dates[1]) {
+                  setDateRange([dates[0], dates[1]]);
+                }
+              }}
+              presets={datePresets}
+              style={{ width: '100%' }}
+              allowClear={false}
+            />
+          </Col>
           <Col xs={24} sm={12} md={6}>
             <div style={{ marginBottom: 8 }}>因子类型</div>
             <Select
               value={selectedFactor}
               onChange={setSelectedFactor}
-              options={factorTypes}
               style={{ width: '100%' }}
-            />
+              loading={loadingFactors}
+              showSearch
+              optionFilterProp="label"
+            >
+              {Object.entries(groupedFactors).map(([category, factors]) => (
+                <Select.OptGroup key={category} label={category}>
+                  {factors.map(f => (
+                    <Select.Option key={f.id} value={f.id} label={f.name}>
+                      <Space>
+                        <span>{f.name}</span>
+                        {f.type === 'alpha101' && <Tag color="purple" style={{ fontSize: 10 }}>α101</Tag>}
+                      </Space>
+                    </Select.Option>
+                  ))}
+                </Select.OptGroup>
+              ))}
+            </Select>
           </Col>
           <Col xs={24} sm={12} md={6}>
             <div style={{ marginBottom: 8 }}>分位数</div>
@@ -303,9 +430,8 @@ export default function FactorAnalysisPage() {
               style={{ width: '100%' }}
             />
           </Col>
-          <Col xs={24} sm={12} md={6}>
-            <div style={{ marginBottom: 8 }}>中性化处理</div>
-            <Space direction="vertical">
+          <Col xs={24}>
+            <Space>
               <Checkbox
                 checked={industryNeutral}
                 onChange={(e) => setIndustryNeutral(e.target.checked)}
@@ -327,7 +453,7 @@ export default function FactorAnalysisPage() {
       {result && (
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
           {/* Effectiveness Summary */}
-          <Card>
+          <Card style={{ background: isDark ? '#1f1f1f' : '#fff' }}>
             <Row gutter={[24, 24]} align="middle">
               <Col xs={24} md={12}>
                 <Space size="large">
@@ -341,6 +467,9 @@ export default function FactorAnalysisPage() {
                       {result.name}
                       <Tag color={getGradeColor(result.grade)} style={{ marginLeft: 8 }}>
                         评级: {result.grade}
+                      </Tag>
+                      <Tag color={result.dataSource === 'tushare' ? 'green' : 'orange'} style={{ marginLeft: 4 }}>
+                        {result.dataSource === 'tushare' ? 'Tushare数据' : '模拟数据'}
                       </Tag>
                     </Title>
                     <Text type="secondary">{result.category}</Text>
@@ -399,7 +528,7 @@ export default function FactorAnalysisPage() {
           </Card>
 
           {/* IC Analysis */}
-          <Card title={<><DashboardOutlined /> IC 分析</>}>
+          <Card title={<><DashboardOutlined /> IC 分析</>} style={{ background: isDark ? '#1f1f1f' : '#fff' }}>
             <Row gutter={[16, 16]}>
               <Col xs={12} sm={8} md={4}>
                 <Statistic title="IC 均值" value={result.icMean.toFixed(4)} />
@@ -430,7 +559,7 @@ export default function FactorAnalysisPage() {
           </Card>
 
           {/* Quantile Analysis */}
-          <Card title={<><BarChartOutlined /> 分位数分析</>}>
+          <Card title={<><BarChartOutlined /> 分位数分析</>} style={{ background: isDark ? '#1f1f1f' : '#fff' }}>
             <Row gutter={24}>
               <Col xs={24} lg={12}>
                 <div style={{ height: 300 }}>
@@ -457,7 +586,7 @@ export default function FactorAnalysisPage() {
           </Card>
 
           {/* IC Decay */}
-          <Card title={<><LineChartOutlined /> IC 衰减分析</>}>
+          <Card title={<><LineChartOutlined /> IC 衰减分析</>} style={{ background: isDark ? '#1f1f1f' : '#fff' }}>
             <Row gutter={24}>
               <Col xs={24} lg={16}>
                 <div style={{ height: 300 }}>
@@ -484,7 +613,7 @@ export default function FactorAnalysisPage() {
           </Card>
 
           {/* Risk Metrics */}
-          <Card title={<><SafetyCertificateOutlined /> 风险指标</>}>
+          <Card title={<><SafetyCertificateOutlined /> 风险指标</>} style={{ background: isDark ? '#1f1f1f' : '#fff' }}>
             <Row gutter={[16, 16]}>
               <Col xs={12} sm={6}>
                 <Statistic title="索提诺比率" value="1.45" />
@@ -502,6 +631,65 @@ export default function FactorAnalysisPage() {
           </Card>
         </Space>
       )}
+
+      {/* Factor Code Modal */}
+      <Modal
+        title={factorCode?.name || '因子代码'}
+        open={codeModalVisible}
+        onCancel={() => setCodeModalVisible(false)}
+        width={900}
+        footer={[
+          <Button key="close" onClick={() => setCodeModalVisible(false)}>
+            关闭
+          </Button>,
+          <Button
+            key="copy"
+            type="primary"
+            icon={copied ? <CheckOutlined /> : <CopyOutlined />}
+            onClick={copyCode}
+          >
+            {copied ? '已复制' : '复制代码'}
+          </Button>
+        ]}
+      >
+        {factorCode && (
+          <>
+            <Descriptions column={2} bordered size="small" style={{ marginBottom: 16 }}>
+              <Descriptions.Item label="类别">{factorCode.category}</Descriptions.Item>
+              <Descriptions.Item label="类型">
+                <Tag color={factorCode.type === 'alpha101' ? 'purple' : 'blue'}>
+                  {factorCode.type === 'alpha101' ? 'Alpha101' : '基础因子'}
+                </Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="描述" span={2}>{factorCode.description}</Descriptions.Item>
+              {factorCode.formula && (
+                <Descriptions.Item label="公式" span={2}>
+                  <code style={{ background: isDark ? '#333' : '#f5f5f5', padding: '4px 8px', borderRadius: 4 }}>
+                    {factorCode.formula}
+                  </code>
+                </Descriptions.Item>
+              )}
+              <Descriptions.Item label="参数">
+                {Object.entries(factorCode.parameters || {}).map(([k, v]) => `${k}=${v}`).join(', ') || '无'}
+              </Descriptions.Item>
+              <Descriptions.Item label="参考文献">
+                {factorCode.references?.slice(0, 1).join('; ') || '无'}
+              </Descriptions.Item>
+            </Descriptions>
+            <Title level={5}>Python 实现</Title>
+            <pre style={{
+              background: isDark ? '#0d1117' : '#f6f8fa',
+              padding: 16,
+              borderRadius: 6,
+              overflow: 'auto',
+              maxHeight: 400,
+              fontSize: 13
+            }}>
+              {factorCode.code}
+            </pre>
+          </>
+        )}
+      </Modal>
     </div>
   );
 }
