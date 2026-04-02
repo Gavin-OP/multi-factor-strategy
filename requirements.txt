@@ -1,9 +1,9 @@
-fastapi==0.135.3
-uvicorn==0.42.0
-pydantic==2.12.5
-pandas==2.2.3
-numpy==2.0.2
+fastapi==0.115.14
+uvicorn==0.35.0
+pydantic==2.11.7
+pandas==2.3.1
+numpy==2.3.1
 tushare==1.4.29
-python-dotenv==1.2.2
-requests==2.33.1
+python-dotenv==1.1.1
+requests==2.32.4
 scipy==1.16.0
