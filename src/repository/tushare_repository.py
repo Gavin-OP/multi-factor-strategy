@@ -204,24 +204,32 @@ class TushareRepository:
         self,
         ts_codes: List[str],
         start_date: str,
-        end_date: str
+        end_date: str,
+        limit: int = 50
     ) -> pd.DataFrame:
         """批量获取多只股票数据"""
         all_data = []
-        for code in ts_codes[:20]:  # 限制数量避免超限
+        success_count = 0
+        
+        for code in ts_codes[:limit]:
             try:
                 prices = self.get_daily_prices(code, start_date, end_date)
-                for p in prices:
-                    all_data.append({
-                        'ts_code': p.ts_code,
-                        'trade_date': p.trade_date,
-                        'close': p.close,
-                        'open': p.open,
-                        'high': p.high,
-                        'low': p.low,
-                        'vol': p.vol,
-                    })
-            except:
+                if prices:
+                    for p in prices:
+                        all_data.append({
+                            'ts_code': p.ts_code,
+                            'trade_date': p.trade_date,
+                            'close': p.close,
+                            'open': p.open,
+                            'high': p.high,
+                            'low': p.low,
+                            'vol': p.vol,
+                            'pct_chg': p.pct_chg,
+                        })
+                    success_count += 1
+            except Exception as e:
+                print(f"Failed to get data for {code}: {e}")
                 continue
         
+        print(f"Successfully fetched data for {success_count} stocks")
         return pd.DataFrame(all_data)
