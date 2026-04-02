@@ -108,6 +108,11 @@ class TushareRepository:
     
     def _mock_prices(self, ts_code: str, start_date: str, end_date: str) -> List[Price]:
         """生成模拟价格数据"""
+        from datetime import datetime
+        
+        if end_date is None:
+            end_date = datetime.now().strftime("%Y%m%d")
+        
         dates = pd.date_range(start=start_date, end=end_date, freq='B')
         n = min(len(dates), 100)
         
