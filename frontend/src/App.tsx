@@ -6,13 +6,14 @@ import {
 import {
   DatabaseOutlined, LineChartOutlined, BranchesOutlined,
   SunOutlined, MoonOutlined, GlobalOutlined, MenuOutlined,
-  ApiOutlined, CheckCircleOutlined, CloseCircleOutlined
+  ApiOutlined, CheckCircleOutlined, CloseCircleOutlined, StockOutlined
 } from '@ant-design/icons'
 import { I18nProvider, useI18n } from './i18n'
 import { ThemeProvider, useTheme } from './theme'
 import DatabaseArchitecture from './components/DatabaseArchitecture'
 import FactorAnalysisPage from './pages/FactorAnalysis'
 import BacktestPage from './pages/Backtest'
+import MarketDataPage from './pages/MarketData'
 import zhCN from 'antd/locale/zh_CN'
 import enUS from 'antd/locale/en_US'
 import dayjs from 'dayjs'
@@ -65,6 +66,7 @@ function AppContent() {
 
   // Menu items
   const menuItems = [
+    { key: 'market', icon: <StockOutlined />, label: t.nav.marketData },
     { key: 'architecture', icon: <DatabaseOutlined />, label: t.nav.database },
     { key: 'factors', icon: <LineChartOutlined />, label: t.nav.factors },
     { key: 'backtest', icon: <BranchesOutlined />, label: t.nav.backtest },
@@ -88,6 +90,8 @@ function AppContent() {
   // Render page
   const renderPage = () => {
     switch (currentPage) {
+      case 'market':
+        return <MarketDataPage />
       case 'architecture':
         return <DatabaseArchitecture />
       case 'factors':
@@ -95,7 +99,7 @@ function AppContent() {
       case 'backtest':
         return <BacktestPage />
       default:
-        return <DatabaseArchitecture />
+        return <MarketDataPage />
     }
   }
 

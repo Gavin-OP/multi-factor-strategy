@@ -39,6 +39,17 @@ class TushareRepository:
     
     # ========== 股票数据 ==========
     
+    def search_stocks(self, keyword: str, limit: int = 20) -> List[Stock]:
+        """搜索股票（根据代码或名称）"""
+        stocks = self.get_stock_list(limit=5000)  # 获取全部股票
+        keyword = keyword.lower()
+        
+        results = [
+            s for s in stocks
+            if keyword in s.ts_code.lower() or keyword in s.name.lower()
+        ]
+        return results[:limit]
+    
     def get_stock_list(self, market: str = None, limit: int = None) -> List[Stock]:
         """获取股票列表"""
         if self.is_available():
@@ -121,6 +132,21 @@ class TushareRepository:
         ]
     
     # ========== 指数数据 ==========
+    
+    def get_index_list(self) -> List[dict]:
+        """获取主要指数列表"""
+        # 主要A股指数
+        indices = [
+            {"ts_code": "000001.SH", "name": "上证指数", "market": "上海"},
+            {"ts_code": "399001.SZ", "name": "深证成指", "market": "深圳"},
+            {"ts_code": "399006.SZ", "name": "创业板指", "market": "深圳"},
+            {"ts_code": "000688.SH", "name": "科创50", "market": "上海"},
+            {"ts_code": "000300.SH", "name": "沪深300", "market": "上海"},
+            {"ts_code": "000016.SH", "name": "上证50", "market": "上海"},
+            {"ts_code": "000905.SH", "name": "中证500", "market": "上海"},
+            {"ts_code": "000852.SH", "name": "中证1000", "market": "上海"},
+        ]
+        return indices
     
     def get_index_daily(
         self,

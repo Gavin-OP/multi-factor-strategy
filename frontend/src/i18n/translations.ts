@@ -9,7 +9,8 @@ export const translations = {
       database: '数据库架构',
       factors: '因子分析',
       backtest: '策略回测',
-      dataSource: '数据源'
+      dataSource: '数据源',
+      marketData: '行情数据'
     },
     // Theme
     theme: {
@@ -187,6 +188,41 @@ export const translations = {
         exposure: '因子暴露'
       }
     },
+    // Market Data Page
+    market: {
+      title: '行情数据',
+      subtitle: '指数与股票行情展示',
+      indexList: '指数列表',
+      selectIndex: '选择指数',
+      searchStock: '搜索股票',
+      stockSearch: '股票搜索',
+      stockKline: '股票K线',
+      enterCode: '输入代码或名称',
+      daily: '日线',
+      weekly: '周线',
+      monthly: '月线',
+      tradeDate: '交易日期',
+      open: '开盘',
+      high: '最高',
+      low: '最低',
+      close: '收盘',
+      volume: '成交量',
+      klineChart: 'K线图',
+      indexKline: '指数K线',
+      noResults: '未找到结果',
+      loading: '加载中...',
+      dataSource: '数据来源'
+    },
+    // Factor Code
+    factorCode: {
+      title: '因子代码',
+      viewCode: '查看代码',
+      description: '描述',
+      parameters: '参数',
+      references: '参考文献',
+      copyCode: '复制代码',
+      copied: '已复制'
+    },
     // Common
     common: {
       loading: '加载中...',
@@ -211,7 +247,8 @@ export const translations = {
       database: 'Database',
       factors: 'Factor Analysis',
       backtest: 'Backtest',
-      dataSource: 'Data Source'
+      dataSource: 'Data Source',
+      marketData: 'Market Data'
     },
     // Theme
     theme: {
@@ -388,6 +425,41 @@ export const translations = {
         monthlyHeatmap: 'Monthly Returns Heatmap',
         exposure: 'Factor Exposure'
       }
+    },
+    // Market Data Page
+    market: {
+      title: 'Market Data',
+      subtitle: 'Index and Stock Quotes',
+      indexList: 'Index List',
+      selectIndex: 'Select Index',
+      searchStock: 'Search Stock',
+      stockSearch: 'Stock Search',
+      stockKline: 'Stock K-Line',
+      enterCode: 'Enter code or name',
+      daily: 'Daily',
+      weekly: 'Weekly',
+      monthly: 'Monthly',
+      tradeDate: 'Trade Date',
+      open: 'Open',
+      high: 'High',
+      low: 'Low',
+      close: 'Close',
+      volume: 'Volume',
+      klineChart: 'K-Line Chart',
+      indexKline: 'Index K-Line',
+      noResults: 'No results found',
+      loading: 'Loading...',
+      dataSource: 'Data Source'
+    },
+    // Factor Code
+    factorCode: {
+      title: 'Factor Code',
+      viewCode: 'View Code',
+      description: 'Description',
+      parameters: 'Parameters',
+      references: 'References',
+      copyCode: 'Copy Code',
+      copied: 'Copied'
     },
     // Common
     common: {

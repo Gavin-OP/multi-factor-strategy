@@ -58,3 +58,28 @@ class DataController:
             "data": df.to_dict('records') if not df.empty else [],
             "source": "tushare" if self.tushare_repo.is_available() else "mock"
         }
+    
+    async def get_index_list(self) -> dict:
+        """获取指数列表"""
+        indices = self.tushare_repo.get_index_list()
+        return {
+            "data": indices,
+            "source": "tushare" if self.tushare_repo.is_available() else "mock"
+        }
+    
+    async def search_stocks(self, keyword: str, limit: int = 20) -> dict:
+        """搜索股票"""
+        stocks = self.tushare_repo.search_stocks(keyword, limit)
+        return {
+            "data": [
+                {
+                    "ts_code": s.ts_code,
+                    "symbol": s.symbol,
+                    "name": s.name,
+                    "market": s.market
+                }
+                for s in stocks
+            ],
+            "total": len(stocks),
+            "source": "tushare" if self.tushare_repo.is_available() else "mock"
+        }

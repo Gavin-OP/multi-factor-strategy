@@ -42,3 +42,21 @@ async def get_index_daily(
 ):
     """获取指数日线数据"""
     return await controller.get_index_daily(ts_code, start_date, end_date)
+
+
+@router.get("/index/list")
+async def get_index_list(
+    controller: DataController = Depends(get_data_controller)
+):
+    """获取主要指数列表"""
+    return await controller.get_index_list()
+
+
+@router.get("/stocks/search")
+async def search_stocks(
+    keyword: str = Query(..., description="股票代码或名称关键词"),
+    limit: int = Query(default=20, le=100),
+    controller: DataController = Depends(get_data_controller)
+):
+    """搜索股票（根据代码或名称）"""
+    return await controller.search_stocks(keyword, limit)

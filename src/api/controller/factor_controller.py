@@ -5,6 +5,7 @@ Factor Controller - 因子控制器
 from ..schema import FactorTestRequest, FactorTestResponse
 from ...application.orchestrator import FactorResearchOrchestrator
 from ...repository.tushare_repository import TushareRepository
+from ...model.factor_definitions import get_factor_definition, list_factor_definitions
 
 
 class FactorController:
@@ -53,17 +54,35 @@ class FactorController:
     
     async def get_factor_types(self) -> dict:
         """获取因子类型列表"""
+        definitions = list_factor_definitions()
         return {
             "factors": [
-                {"id": "momentum_1m", "name": "1月动量", "category": "动量因子"},
-                {"id": "momentum_3m", "name": "3月动量", "category": "动量因子"},
-                {"id": "momentum_6m", "name": "6月动量", "category": "动量因子"},
-                {"id": "momentum_12m", "name": "12月动量", "category": "动量因子"},
-                {"id": "value_pe", "name": "PE因子", "category": "价值因子"},
-                {"id": "value_pb", "name": "PB因子", "category": "价值因子"},
-                {"id": "quality_roe", "name": "ROE因子", "category": "质量因子"},
-                {"id": "quality_roa", "name": "ROA因子", "category": "质量因子"},
-                {"id": "volatility_1m", "name": "1月波动率", "category": "波动率因子"},
-                {"id": "liquidity_turnover", "name": "换手率", "category": "流动性因子"},
+                {
+                    "id": d.id,
+                    "name": d.name,
+                    "category": d.category,
+                    "description": d.description
+                }
+                for d in definitions
             ]
+        }
+    
+    async def get_factor_code(self, factor_id: str) -> dict:
+        """获取因子代码"""
+        definition = get_factor_definition(factor_id)
+        
+        if definition is None:
+            return {
+                "error": f"Factor {factor_id} not found",
+                "code": None
+            }
+        
+        return {
+            "id": definition.id,
+            "name": definition.name,
+            "category": definition.category,
+            "description": definition.description,
+            "code": definition.code,
+            "parameters": definition.parameters,
+            "references": definition.references
         }
