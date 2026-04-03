@@ -5,7 +5,6 @@ Tushare Repository - Tushare 数据源
 import os
 from typing import List, Optional
 import pandas as pd
-import numpy as np
 
 from ..model.market import Stock, Price
 
@@ -15,6 +14,8 @@ class TushareRepository:
     Tushare 数据仓库
     
     职责：从 Tushare API 获取数据
+    
+    注意：不提供 mock 数据，需要配置 TUSHARE_TOKEN
     """
     
     def __init__(self, token: Optional[str] = None):
@@ -30,18 +31,18 @@ class TushareRepository:
                 ts.set_token(self.token)
                 self._pro = ts.pro_api()
             except ImportError:
-                pass
+                raise ImportError("请安装 tushare: pip install tushare")
         return self._pro
     
     def is_available(self) -> bool:
         """检查是否可用"""
-        return self.pro is not None
+        return self.token is not None and len(self.token) > 0
     
     # ========== 股票数据 ==========
     
     def search_stocks(self, keyword: str, limit: int = 20) -> List[Stock]:
         """搜索股票（根据代码或名称）"""
-        stocks = self.get_stock_list(limit=5000)  # 获取全部股票
+        stocks = self.get_stock_list(limit=5000)
         keyword = keyword.lower()
         
         results = [
@@ -52,35 +53,22 @@ class TushareRepository:
     
     def get_stock_list(self, market: str = None, limit: int = None) -> List[Stock]:
         """获取股票列表"""
-        if self.is_available():
-            try:
-                df = self.pro.stock_basic(
-                    exchange='',
-                    list_status='L',
-                    fields='ts_code,symbol,name,area,industry,market,list_date'
-                )
-                if market:
-                    df = df[df['market'] == market]
-                if limit:
-                    df = df.head(limit)
-                return [Stock(**row) for row in df.to_dict('records')]
-            except Exception as e:
-                print(f"Tushare error: {e}")
+        if not self.is_available():
+            raise ValueError("TUSHARE_TOKEN 未配置，无法获取股票列表")
         
-        # Mock data
-        return self._mock_stock_list(limit or 100)
-    
-    def _mock_stock_list(self, limit: int) -> List[Stock]:
-        """生成模拟股票列表"""
-        return [
-            Stock(
-                ts_code=f"{600000+i:06d}.SH",
-                symbol=f"{600000+i:06d}",
-                name=f"股票{i+1}",
-                market="主板"
+        try:
+            df = self.pro.stock_basic(
+                exchange='',
+                list_status='L',
+                fields='ts_code,symbol,name,area,industry,market,list_date'
             )
-            for i in range(limit)
-        ]
+            if market:
+                df = df[df['market'] == market]
+            if limit:
+                df = df.head(limit)
+            return [Stock(**row) for row in df.to_dict('records')]
+        except Exception as e:
+            raise RuntimeError(f"获取股票列表失败: {e}")
     
     # ========== 价格数据 ==========
     
@@ -91,57 +79,27 @@ class TushareRepository:
         end_date: str
     ) -> List[Price]:
         """获取日线数据"""
-        if self.is_available():
-            try:
-                df = self.pro.daily(
-                    ts_code=ts_code,
-                    start_date=start_date,
-                    end_date=end_date
-                )
-                if not df.empty:
-                    df = df.sort_values('trade_date')
-                    return [Price(**row) for row in df.to_dict('records')]
-            except Exception as e:
-                print(f"Tushare error: {e}")
+        if not self.is_available():
+            raise ValueError("TUSHARE_TOKEN 未配置，无法获取价格数据")
         
-        return self._mock_prices(ts_code, start_date, end_date)
-    
-    def _mock_prices(self, ts_code: str, start_date: str, end_date: str) -> List[Price]:
-        """生成模拟价格数据"""
-        from datetime import datetime
-        
-        if end_date is None:
-            end_date = datetime.now().strftime("%Y%m%d")
-        
-        dates = pd.date_range(start=start_date, end=end_date, freq='B')
-        n = min(len(dates), 100)
-        
-        base = 10.0
-        close = base * np.exp(np.cumsum(np.random.randn(n) * 0.02))
-        
-        return [
-            Price(
+        try:
+            df = self.pro.daily(
                 ts_code=ts_code,
-                trade_date=dates[i].strftime('%Y%m%d'),
-                open=float(close[i] * (1 + np.random.randn() * 0.01)),
-                high=float(close[i] * 1.02),
-                low=float(close[i] * 0.98),
-                close=float(close[i]),
-                pre_close=float(close[max(0, i-1)]),
-                change=float(close[i] - close[max(0, i-1)]),
-                pct_chg=float((close[i] / close[max(0, i-1)] - 1) * 100),
-                vol=float(np.random.randint(1000000, 10000000)),
-                amount=float(close[i] * np.random.randint(1000000, 10000000))
+                start_date=start_date,
+                end_date=end_date
             )
-            for i in range(n)
-        ]
+            if df.empty:
+                return []
+            df = df.sort_values('trade_date')
+            return [Price(**row) for row in df.to_dict('records')]
+        except Exception as e:
+            raise RuntimeError(f"获取价格数据失败: {e}")
     
     # ========== 指数数据 ==========
     
     def get_index_list(self) -> List[dict]:
         """获取主要指数列表"""
-        # 主要A股指数
-        indices = [
+        return [
             {"ts_code": "000001.SH", "name": "上证指数", "market": "上海"},
             {"ts_code": "399001.SZ", "name": "深证成指", "market": "深圳"},
             {"ts_code": "399006.SZ", "name": "创业板指", "market": "深圳"},
@@ -151,7 +109,6 @@ class TushareRepository:
             {"ts_code": "000905.SH", "name": "中证500", "market": "上海"},
             {"ts_code": "000852.SH", "name": "中证1000", "market": "上海"},
         ]
-        return indices
     
     def get_index_daily(
         self,
@@ -165,38 +122,20 @@ class TushareRepository:
         if end_date is None:
             end_date = datetime.now().strftime("%Y%m%d")
         
-        if self.is_available():
-            try:
-                df = self.pro.index_daily(
-                    ts_code=ts_code,
-                    start_date=start_date,
-                    end_date=end_date
-                )
-                if not df.empty:
-                    return df.sort_values('trade_date')
-            except Exception as e:
-                print(f"Tushare error: {e}")
+        if not self.is_available():
+            raise ValueError("TUSHARE_TOKEN 未配置，无法获取指数数据")
         
-        # Mock data
-        return self._mock_index(ts_code, start_date, end_date)
-    
-    def _mock_index(self, ts_code: str, start_date: str, end_date: str) -> pd.DataFrame:
-        """生成模拟指数数据"""
-        dates = pd.date_range(start=start_date, end=end_date, freq='B')
-        n = min(len(dates), 100)
-        
-        base = 3000.0
-        close = base * np.exp(np.cumsum(np.random.randn(n) * 0.01))
-        
-        return pd.DataFrame({
-            'ts_code': ts_code,
-            'trade_date': [d.strftime('%Y%m%d') for d in dates[:n]],
-            'close': close,
-            'open': close * (1 + np.random.randn(n) * 0.005),
-            'high': close * 1.01,
-            'low': close * 0.99,
-            'vol': np.random.randint(1e8, 5e8, n),
-        })
+        try:
+            df = self.pro.index_daily(
+                ts_code=ts_code,
+                start_date=start_date,
+                end_date=end_date
+            )
+            if df.empty:
+                return pd.DataFrame()
+            return df.sort_values('trade_date')
+        except Exception as e:
+            raise RuntimeError(f"获取指数数据失败: {e}")
     
     # ========== 批量获取 ==========
     
@@ -208,6 +147,9 @@ class TushareRepository:
         limit: int = 50
     ) -> pd.DataFrame:
         """批量获取多只股票数据"""
+        if not self.is_available():
+            raise ValueError("TUSHARE_TOKEN 未配置，无法获取数据")
+        
         all_data = []
         success_count = 0
         
