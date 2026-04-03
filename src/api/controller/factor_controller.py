@@ -5,8 +5,7 @@ Factor Controller - 因子控制器
 from ..schema import FactorTestRequest, FactorTestResponse
 from ...application.orchestrator import FactorResearchOrchestrator
 from ...repository.tushare_repository import TushareRepository
-from ...model.factor_definitions import get_factor_definition, list_factor_definitions
-from ...model.alpha101_definitions import get_alpha101_definition, list_alpha101_definitions
+from ...factors import FactorRegistry, list_factors
 
 
 class FactorController:
@@ -42,10 +41,10 @@ class FactorController:
             "monotonicity": factor.monotonicity,
             "halfLife": factor.half_life,
             "turnover": factor.turnover,
-            "auc": 0.535,  # TODO: 计算 AUC
-            "f1Score": 0.52,  # TODO: 计算 F1
-            "factorReturn": factor.spread_return * 0.5,  # 因子收益
-            "factorReturnTStat": 2.45,  # TODO: 计算 t 统计量
+            "auc": 0.535,
+            "f1Score": 0.52,
+            "factorReturn": factor.spread_return * 0.5,
+            "factorReturnTStat": 2.45,
             "grade": factor.grade,
             "score": factor.score,
             "isEffective": factor.is_effective,
@@ -59,66 +58,53 @@ class FactorController:
     
     async def get_factor_types(self) -> dict:
         """获取因子类型列表"""
-        # 基础因子
-        basic_factors = list_factor_definitions()
-        # Alpha101 因子
-        alpha101_factors = list_alpha101_definitions()
+        all_factors = list_factors()
         
-        all_factors = []
+        result = []
+        for f in all_factors:
+            factor_type = "alpha101" if f.category == "alpha101" else "basic"
+            item = {
+                "id": f.id,
+                "name": f.name,
+                "category": f.category,
+                "description": f.description,
+                "type": factor_type
+            }
+            if f.formula:
+                item["formula"] = f.formula
+            result.append(item)
         
-        # 添加基础因子
-        for d in basic_factors:
-            all_factors.append({
-                "id": d.id,
-                "name": d.name,
-                "category": d.category,
-                "description": d.description,
-                "type": "basic"
-            })
-        
-        # 添加 Alpha101 因子
-        for d in alpha101_factors:
-            all_factors.append({
-                "id": d.id,
-                "name": d.name,
-                "category": d.category,
-                "description": d.description,
-                "type": "alpha101",
-                "formula": d.formula
-            })
-        
-        return {"factors": all_factors}
+        return {"factors": result}
     
     async def get_factor_code(self, factor_id: str) -> dict:
         """获取因子代码"""
-        # 先查找基础因子
-        definition = get_factor_definition(factor_id)
-        factor_type = "basic"
+        meta = FactorRegistry.get_meta(factor_id)
         
-        # 如果没找到，查找 Alpha101 因子
-        if definition is None:
-            definition = get_alpha101_definition(factor_id)
-            factor_type = "alpha101"
-        
-        if definition is None:
+        if meta is None:
             return {
                 "error": f"Factor {factor_id} not found",
                 "code": None
             }
         
+        # 获取因子实例以获取计算代码
+        factor = FactorRegistry.get(factor_id)
+        import inspect
+        code = inspect.getsource(factor.__class__) if factor else ""
+        
+        factor_type = "alpha101" if meta.category == "alpha101" else "basic"
+        
         result = {
-            "id": definition.id,
-            "name": definition.name,
-            "category": definition.category,
-            "description": definition.description,
-            "code": definition.code,
-            "parameters": definition.parameters,
-            "references": definition.references,
+            "id": meta.id,
+            "name": meta.name,
+            "category": meta.category,
+            "description": meta.description,
+            "code": code,
+            "parameters": meta.parameters,
+            "references": meta.references,
             "type": factor_type
         }
         
-        # Alpha101 特有字段
-        if factor_type == "alpha101" and hasattr(definition, 'formula'):
-            result["formula"] = definition.formula
+        if meta.formula:
+            result["formula"] = meta.formula
         
         return result

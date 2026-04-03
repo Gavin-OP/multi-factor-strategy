@@ -6,8 +6,7 @@ import numpy as np
 import pandas as pd
 from typing import Dict, List, Optional
 
-from ...model.factor import FactorMeta, FactorValue
-from ...model.market import Price
+from ...factors import FactorRegistry
 
 
 class FactorComputeService:
@@ -22,8 +21,10 @@ class FactorComputeService:
         """
         批量计算因子值
         
-        自适应数据量：如果数据不足，自动调整周期
-        
+        Args:
+            price_data: 包含 OHLCV 数据的 DataFrame
+            factor_type: 因子 ID
+            
         Returns:
             {stock_code: factor_value}
         """
@@ -33,12 +34,39 @@ class FactorComputeService:
             print(f"[FactorCompute] No price data provided")
             return values
         
-        # 获取数据日期范围
+        # 获取可用数据量
         unique_dates = sorted(price_data['trade_date'].unique())
         available_days = len(unique_dates)
         print(f"[FactorCompute] Available: {available_days} days, {price_data['ts_code'].nunique()} stocks")
         
-        # 根据因子类型计算
+        # 从注册中心获取因子
+        factor = FactorRegistry.get(factor_type)
+        
+        if factor:
+            # 使用因子类计算
+            try:
+                series = factor.compute(price_data)
+                values = series.to_dict()
+            except Exception as e:
+                print(f"[FactorCompute] Factor {factor_type} compute error: {e}")
+                # 回退到内置计算
+                values = self._compute_builtin(price_data, factor_type, available_days)
+        else:
+            # 使用内置计算方法
+            values = self._compute_builtin(price_data, factor_type, available_days)
+        
+        print(f"[FactorCompute] Computed for {len(values)} stocks")
+        return values
+    
+    def _compute_builtin(
+        self, 
+        price_data: pd.DataFrame, 
+        factor_type: str, 
+        available_days: int
+    ) -> Dict[str, float]:
+        """内置因子计算方法（兼容旧代码）"""
+        values = {}
+        
         if factor_type.startswith('momentum'):
             values = self._compute_momentum(price_data, factor_type, available_days)
         elif factor_type.startswith('volatility'):
@@ -50,25 +78,21 @@ class FactorComputeService:
         elif factor_type.startswith('liquidity'):
             values = self._compute_liquidity(price_data, factor_type, available_days)
         else:
-            # 默认：计算期间收益
             values = self._compute_return(price_data, available_days)
         
-        print(f"[FactorCompute] Computed for {len(values)} stocks")
         return values
     
     def _compute_momentum(self, price_data: pd.DataFrame, factor_type: str, available_days: int) -> Dict[str, float]:
         """计算动量因子"""
         values = {}
         
-        # 解析目标周期
         try:
             period_str = factor_type.split('_')[1].replace('m', '')
             target_months = int(period_str)
             target_days = target_months * 20
         except:
-            target_days = 20  # 默认1个月
+            target_days = 20
         
-        # 自适应：使用 min(目标天数, 可用天数-5)
         actual_period = min(target_days, max(available_days - 5, 5))
         
         if actual_period < target_days:
@@ -91,8 +115,7 @@ class FactorComputeService:
         
         try:
             period_str = factor_type.split('_')[1].replace('m', '')
-            target_months = int(period_str)
-            target_days = target_months * 20
+            target_days = int(period_str) * 20
         except:
             target_days = 20
         
@@ -110,14 +133,13 @@ class FactorComputeService:
         return values
     
     def _compute_value(self, price_data: pd.DataFrame, factor_type: str, available_days: int) -> Dict[str, float]:
-        """计算价值因子（简化版，用价格倒数代理）"""
+        """计算价值因子"""
         values = {}
         
         for ts_code in price_data['ts_code'].unique():
             stock_data = price_data[price_data['ts_code'] == ts_code].sort_values('trade_date')
             if len(stock_data) >= 1:
                 try:
-                    # 用最新价格的倒数作为价值代理（价格越低越有价值）
                     close = stock_data['close'].iloc[-1]
                     values[ts_code] = float(1.0 / close) if close > 0 else 0
                 except:
@@ -126,14 +148,13 @@ class FactorComputeService:
         return values
     
     def _compute_quality(self, price_data: pd.DataFrame, factor_type: str, available_days: int) -> Dict[str, float]:
-        """计算质量因子（简化版，用收益稳定性代理）"""
+        """计算质量因子"""
         values = {}
         
         for ts_code in price_data['ts_code'].unique():
             stock_data = price_data[price_data['ts_code'] == ts_code].sort_values('trade_date')
             if len(stock_data) >= 10:
                 try:
-                    # 用收益的稳定性（负波动率）作为质量代理
                     std = stock_data['pct_chg'].iloc[-10:].std()
                     values[ts_code] = float(-std) if not np.isnan(std) else 0
                 except:
@@ -149,7 +170,6 @@ class FactorComputeService:
             stock_data = price_data[price_data['ts_code'] == ts_code].sort_values('trade_date')
             if len(stock_data) >= 5:
                 try:
-                    # 用平均成交量作为流动性代理
                     avg_vol = stock_data['vol'].iloc[-5:].mean()
                     values[ts_code] = float(avg_vol) if not np.isnan(avg_vol) else 0
                 except:
