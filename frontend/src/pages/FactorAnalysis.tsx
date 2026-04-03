@@ -468,8 +468,8 @@ export default function FactorAnalysisPage() {
                       <Tag color={getGradeColor(result.grade)} style={{ marginLeft: 8 }}>
                         评级: {result.grade}
                       </Tag>
-                      <Tag color={result.dataSource === 'tushare' ? 'green' : 'orange'} style={{ marginLeft: 4 }}>
-                        {result.dataSource === 'tushare' ? 'Tushare数据' : '模拟数据'}
+                      <Tag color={result.dataSource === 'mock' ? 'orange' : 'green'} style={{ marginLeft: 4 }}>
+                        {result.dataSource === 'mock' ? '模拟数据' : '实际数据'}
                       </Tag>
                     </Title>
                     <Text type="secondary">{result.category}</Text>
