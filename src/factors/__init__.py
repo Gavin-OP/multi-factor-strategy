@@ -1,11 +1,13 @@
 """
 Factors - 因子模块
 
-包含所有因子的定义和计算逻辑
+包含所有因子的定义、注册和存储
 """
 
 from .base import Factor, FactorMeta, FactorGroup
 from .registry import FactorRegistry, register_factor, get_factor, list_factors
+from .storage import FactorStorage, get_storage
+
 
 # 导入所有因子模块，触发注册
 from . import momentum
@@ -26,4 +28,7 @@ __all__ = [
     'register_factor',
     'get_factor',
     'list_factors',
+    # 存储
+    'FactorStorage',
+    'get_storage',
 ]

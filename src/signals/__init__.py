@@ -1,23 +1,20 @@
 """
-Signal Library - 信号库
-统一管理信号的注册、存储、查询
+Signals - 信号模块
+
+信号 = 多因子组合，是更高层次的投资策略
 """
 
 from typing import Dict, List, Optional
 import pandas as pd
-from datetime import datetime
 
 from ..model.signal import Signal
 
 
-class SignalLibrary:
+class SignalStorage:
     """
-    信号库
+    信号存储
     
-    职责：
-    1. 信号注册管理
-    2. 信号值存储
-    3. 信号查询
+    管理信号的注册、存储、查询
     """
     
     def __init__(self):
@@ -51,12 +48,12 @@ class SignalLibrary:
 
 
 # 全局单例
-_signal_library: Optional[SignalLibrary] = None
+_storage: Optional[SignalStorage] = None
 
 
-def get_signal_library() -> SignalLibrary:
-    """获取信号库单例"""
-    global _signal_library
-    if _signal_library is None:
-        _signal_library = SignalLibrary()
-    return _signal_library
+def get_storage() -> SignalStorage:
+    """获取信号存储单例"""
+    global _storage
+    if _storage is None:
+        _storage = SignalStorage()
+    return _storage

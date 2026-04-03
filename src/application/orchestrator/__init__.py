@@ -10,7 +10,7 @@ from ...service.factor.factor_compute_service import FactorComputeService
 from ...service.factor.factor_validate_service import FactorValidateService
 from ...service.factor.factor_analyze_service import FactorAnalyzeService
 from ...service.backtest.backtest_engine_service import BacktestEngineService
-from ...library.factor_library import get_factor_library
+from ...factors import get_storage
 from ...model.factor import FactorResult
 from ...model.backtest import BacktestResult
 
@@ -39,8 +39,8 @@ class FactorResearchOrchestrator:
             self.analyze_service
         )
         
-        # 因子库
-        self.factor_library = get_factor_library()
+        # 因子存储
+        self.factor_storage = get_storage()
     
     def research_factor(
         self,
@@ -66,9 +66,9 @@ class FactorResearchOrchestrator:
             forward_period=forward_period
         )
         
-        # 注册到因子库
+        # 注册到因子存储
         if register and result.factor.is_effective:
-            self.factor_library.register(result.factor)
+            self.factor_storage.register_meta(result.factor)
         
         return result
 
