@@ -6,6 +6,7 @@ from ..schema import FactorTestRequest, FactorTestResponse
 from ...application.orchestrator import FactorResearchOrchestrator
 from ...repository.tushare_repository import TushareRepository
 from ...factors import FactorRegistry, list_factors
+from ...model.alpha101_definitions import ALPHA101_DEFINITIONS
 
 
 class FactorController:
@@ -58,10 +59,10 @@ class FactorController:
     
     async def get_factor_types(self) -> dict:
         """获取因子类型列表"""
-        all_factors = list_factors()
-        
         result = []
-        for f in all_factors:
+        
+        # 从 factors 模块获取因子
+        for f in list_factors():
             factor_type = "alpha101" if f.category == "alpha101" else "basic"
             item = {
                 "id": f.id,
@@ -74,37 +75,58 @@ class FactorController:
                 item["formula"] = f.formula
             result.append(item)
         
+        # 从原始 ALPHA101_DEFINITIONS 获取更多因子
+        existing_ids = {f.id for f in list_factors()}
+        for alpha_id, alpha_def in ALPHA101_DEFINITIONS.items():
+            if alpha_id not in existing_ids:
+                item = {
+                    "id": alpha_def.id,
+                    "name": alpha_def.name,
+                    "category": alpha_def.category,
+                    "description": alpha_def.description,
+                    "type": "alpha101",
+                    "formula": alpha_def.formula
+                }
+                result.append(item)
+        
         return {"factors": result}
     
     async def get_factor_code(self, factor_id: str) -> dict:
         """获取因子代码"""
+        # 先从 factors 模块获取
         meta = FactorRegistry.get_meta(factor_id)
+        if meta:
+            factor = FactorRegistry.get(factor_id)
+            import inspect
+            code = inspect.getsource(factor.__class__) if factor else ""
+            factor_type = "alpha101" if meta.category == "alpha101" else "basic"
+            result = {
+                "id": meta.id,
+                "name": meta.name,
+                "category": meta.category,
+                "description": meta.description,
+                "code": code,
+                "parameters": meta.parameters,
+                "references": meta.references,
+                "type": factor_type
+            }
+            if meta.formula:
+                result["formula"] = meta.formula
+            return result
         
-        if meta is None:
+        # 从原始定义获取
+        if factor_id in ALPHA101_DEFINITIONS:
+            alpha_def = ALPHA101_DEFINITIONS[factor_id]
             return {
-                "error": f"Factor {factor_id} not found",
-                "code": None
+                "id": alpha_def.id,
+                "name": alpha_def.name,
+                "category": alpha_def.category,
+                "description": alpha_def.description,
+                "code": alpha_def.code,
+                "parameters": alpha_def.parameters,
+                "references": alpha_def.references,
+                "type": "alpha101",
+                "formula": alpha_def.formula
             }
         
-        # 获取因子实例以获取计算代码
-        factor = FactorRegistry.get(factor_id)
-        import inspect
-        code = inspect.getsource(factor.__class__) if factor else ""
-        
-        factor_type = "alpha101" if meta.category == "alpha101" else "basic"
-        
-        result = {
-            "id": meta.id,
-            "name": meta.name,
-            "category": meta.category,
-            "description": meta.description,
-            "code": code,
-            "parameters": meta.parameters,
-            "references": meta.references,
-            "type": factor_type
-        }
-        
-        if meta.formula:
-            result["formula"] = meta.formula
-        
-        return result
+        return {"error": f"Factor {factor_id} not found", "code": None}
