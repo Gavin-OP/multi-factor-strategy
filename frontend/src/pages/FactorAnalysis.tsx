@@ -531,26 +531,26 @@ export default function FactorAnalysisPage() {
           <Card title={<><DashboardOutlined /> IC 分析</>} style={{ background: isDark ? '#1f1f1f' : '#fff' }}>
             <Row gutter={[16, 16]}>
               <Col xs={12} sm={8} md={4}>
-                <Statistic title="IC 均值" value={result.icMean.toFixed(4)} />
+                <Statistic title="IC 均值" value={(result.icMean ?? 0).toFixed(4)} />
               </Col>
               <Col xs={12} sm={8} md={4}>
-                <Statistic title="IC 标准差" value={result.icStd.toFixed(4)} />
+                <Statistic title="IC 标准差" value={(result.icStd ?? 0).toFixed(4)} />
               </Col>
               <Col xs={12} sm={8} md={4}>
-                <Statistic title="ICIR" value={result.icir.toFixed(3)} />
+                <Statistic title="ICIR" value={(result.icir ?? 0).toFixed(3)} />
               </Col>
               <Col xs={12} sm={8} md={4}>
                 <Statistic
                   title="IC t统计量"
-                  value={result.icTStat.toFixed(2)}
-                  valueStyle={{ color: Math.abs(result.icTStat) > 2 ? '#52c41a' : undefined }}
+                  value={(result.icTStat ?? 0).toFixed(2)}
+                  valueStyle={{ color: Math.abs(result.icTStat ?? 0) > 2 ? '#52c41a' : undefined }}
                 />
               </Col>
               <Col xs={12} sm={8} md={4}>
-                <Statistic title="IC 正值比例" value={`${(result.icPositiveRatio * 100).toFixed(0)}%`} />
+                <Statistic title="IC 正值比例" value={`${((result.icPositiveRatio ?? 0) * 100).toFixed(0)}%`} />
               </Col>
               <Col xs={12} sm={8} md={4}>
-                <Statistic title="IC 显著比例" value={`${(result.icSignificantRatio * 100).toFixed(0)}%`} />
+                <Statistic title="IC 显著比例" value={`${((result.icSignificantRatio ?? 0) * 100).toFixed(0)}%`} />
               </Col>
             </Row>
             <div style={{ marginTop: 24, height: 300 }}>
@@ -569,16 +569,16 @@ export default function FactorAnalysisPage() {
               <Col xs={24} lg={12}>
                 <Descriptions column={2} bordered size="small">
                   <Descriptions.Item label="多空价差收益">
-                    <Text strong>{(result.spreadReturn * 100).toFixed(2)}%</Text>
+                    <Text strong>{((result.spreadReturn ?? 0) * 100).toFixed(2)}%</Text>
                   </Descriptions.Item>
                   <Descriptions.Item label="价差夏普">
-                    {result.spreadSharpe.toFixed(2)}
+                    {(result.spreadSharpe ?? 0).toFixed(2)}
                   </Descriptions.Item>
                   <Descriptions.Item label="单调性得分">
-                    <Progress percent={result.monotonicity * 100} size="small" />
+                    <Progress percent={(result.monotonicity ?? 0) * 100} size="small" />
                   </Descriptions.Item>
                   <Descriptions.Item label="半衰期(期)">
-                    {result.halfLife}
+                    {result.halfLife ?? 0}
                   </Descriptions.Item>
                 </Descriptions>
               </Col>
@@ -596,16 +596,16 @@ export default function FactorAnalysisPage() {
               <Col xs={24} lg={8}>
                 <Descriptions column={1} bordered size="small">
                   <Descriptions.Item label="半衰期">
-                    <Text strong>{result.halfLife} 期</Text>
+                    <Text strong>{result.halfLife ?? 0} 期</Text>
                   </Descriptions.Item>
                   <Descriptions.Item label="平均换手率">
-                    {(result.turnover * 100).toFixed(1)}%
+                    {((result.turnover ?? 0) * 100).toFixed(1)}%
                   </Descriptions.Item>
                   <Descriptions.Item label="AUC">
-                    {result.auc.toFixed(3)}
+                    {(result.auc ?? 0.5).toFixed(3)}
                   </Descriptions.Item>
                   <Descriptions.Item label="F1分数">
-                    {result.f1Score.toFixed(3)}
+                    {(result.f1Score ?? 0.5).toFixed(3)}
                   </Descriptions.Item>
                 </Descriptions>
               </Col>
