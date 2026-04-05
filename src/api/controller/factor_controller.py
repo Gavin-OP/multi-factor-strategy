@@ -63,7 +63,8 @@ class FactorController:
         
         # 从 factors 模块获取因子
         for f in list_factors():
-            factor_type = "alpha101" if f.category == "alpha101" else "basic"
+            # Alpha101因子通过id前缀识别
+            factor_type = "alpha101" if f.id.startswith("alpha_") else "basic"
             item = {
                 "id": f.id,
                 "name": f.name,
@@ -75,7 +76,7 @@ class FactorController:
                 item["formula"] = f.formula
             result.append(item)
         
-        # 从原始 ALPHA101_DEFINITIONS 获取更多因子
+        # 从原始 ALPHA101_DEFINITIONS 获取更多因子（已全部迁移，此逻辑保留作为兼容）
         existing_ids = {f.id for f in list_factors()}
         for alpha_id, alpha_def in ALPHA101_DEFINITIONS.items():
             if alpha_id not in existing_ids:
