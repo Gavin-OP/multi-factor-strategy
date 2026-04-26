@@ -77,9 +77,9 @@ class ValidateFactorUseCase:
         if len(factor_values) < 5:
             raise ValueError(f"Not enough factor values computed: {len(factor_values)}")
         
-        # 计算 IC 序列
+        # 计算 IC 序列（同步收集多空收益序列）
         print("[Factor Validation] Calculating IC series...")
-        ic_series = self._calculate_ic_series(price_data, factor_values, forward_period)
+        ic_series, spread_returns_series = self._calculate_ic_and_spread_series(price_data, factor_values, forward_period)
         
         # 计算分位数收益
         print("[Factor Validation] Calculating quantile returns...")
@@ -111,6 +111,15 @@ class ValidateFactorUseCase:
         spread_return = 0
         if len(quantile_returns) >= 2:
             spread_return = quantile_returns[-1]['return'] - quantile_returns[0]['return']
+
+        # 计算多空组合年化 Sharpe
+        spread_sharpe = 0.0
+        if len(spread_returns_series) >= 2:
+            arr = np.array(spread_returns_series)
+            daily_rf = 0.02 / 252
+            excess = arr - daily_rf
+            if np.std(excess) > 0:
+                spread_sharpe = float(np.mean(excess) / np.std(excess) * np.sqrt(252))
         
         factor = FactorMeta(
             code=factor_type,
@@ -122,7 +131,7 @@ class ValidateFactorUseCase:
             ic_t_stat=ic_stats.get('ic_t_stat', 0),
             ic_positive_ratio=ic_stats['ic_positive_ratio'],
             spread_return=spread_return,
-            spread_sharpe=0,
+            spread_sharpe=spread_sharpe,
             monotonicity=monotonicity,
             grade=grade,
             score=score,
@@ -189,6 +198,69 @@ class ValidateFactorUseCase:
         
         return ic_series
     
+    def _calculate_ic_and_spread_series(
+        self,
+        price_data: pd.DataFrame,
+        factor_values: Dict[str, float],
+        forward_period: int
+    ):
+        """计算 IC 时间序列，同时收集每期多空组合收益序列（用于年化 Sharpe 计算）
+
+        Returns:
+            (ic_series, spread_returns_series)
+            ic_series: List[Dict]，每期 IC 值
+            spread_returns_series: List[float]，每期 top 组均值 - bottom 组均值
+        """
+        ic_series = []
+        spread_returns_series = []
+        dates = sorted(price_data['trade_date'].unique())
+
+        actual_period = min(forward_period, len(dates) - 1)
+        if actual_period < 1:
+            return [], []
+
+        for i, date in enumerate(dates[:-actual_period]):
+            next_date = dates[i + actual_period]
+
+            # 计算未来收益（与原 _calculate_ic_series 完全一致）
+            future_returns = {}
+            for ts_code in price_data['ts_code'].unique():
+                stock_data = price_data[price_data['ts_code'] == ts_code]
+                try:
+                    today_close = stock_data[stock_data['trade_date'] == date]['close'].values
+                    future_close = stock_data[stock_data['trade_date'] == next_date]['close'].values
+                    if len(today_close) > 0 and len(future_close) > 0:
+                        future_returns[ts_code] = float(future_close[0] / today_close[0] - 1)
+                except:
+                    continue
+
+            common_stocks = set(factor_values.keys()) & set(future_returns.keys())
+            if len(common_stocks) < 10:
+                continue
+
+            # 计算 IC
+            f_vals = [factor_values[s] for s in common_stocks]
+            r_vals = [future_returns[s] for s in common_stocks]
+            try:
+                ic, _ = stats.spearmanr(f_vals, r_vals)
+                if not np.isnan(ic):
+                    ic_series.append({'date': date, 'ic': float(ic)})
+            except:
+                pass
+
+            # 计算本期多空收益：按因子值排序后取 top 20% 做多、bottom 20% 做空
+            sorted_stocks = sorted(common_stocks, key=lambda s: factor_values[s])
+            n = len(sorted_stocks)
+            cut = max(1, n // 5)
+            bottom_stocks = sorted_stocks[:cut]
+            top_stocks = sorted_stocks[-cut:]
+
+            top_ret = np.mean([future_returns[s] for s in top_stocks])
+            bottom_ret = np.mean([future_returns[s] for s in bottom_stocks])
+            spread_returns_series.append(float(top_ret - bottom_ret))
+
+        return ic_series, spread_returns_series
+
     def _calculate_quantile_returns(
         self,
         price_data: pd.DataFrame,

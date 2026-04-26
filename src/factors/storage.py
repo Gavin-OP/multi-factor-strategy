@@ -30,7 +30,7 @@ class FactorStorage:
     
     def register_meta(self, meta: FactorMeta) -> None:
         """注册因子元信息"""
-        self._meta[meta.id] = meta
+        self._meta[meta.code] = meta
     
     def get_meta(self, factor_id: str) -> Optional[FactorMeta]:
         """获取因子元信息"""
